@@ -1,0 +1,689 @@
+--- a/app/download.c
++++ b/app/download.c
+@@ -13,6 +13,10 @@
+ #include "cJSON.h"
+ #include "esp_heap_caps.h"
+ #include "esp_log.h"
++#include "freertos/idf_additions.h"
++#include "freertos/queue.h"
++#include "esp_wifi.h"
++#include "esp_timer.h"
+ #include "storage.h"
+ #include "wifi.h"
+ 
+@@ -35,6 +39,7 @@
+ 
+ static SemaphoreHandle_t s_lock;
+ static TaskHandle_t s_task;
++static volatile bool s_paused;  // (yotwo) downloads held: stop at once, keep what is done, resume later
+ static entry_t s_entries[MAX_DOWNLOADS];
+ static int s_count;
+ static volatile uint32_t s_generation;
+@@ -127,24 +132,85 @@
+     return err;
+ }
+ 
+-// Appends one segment to `audio`. Retries (404/500 while the server transcodes or re-seeks).
+-static bool fetch_segment(const char *base, int seg, FILE *audio, uint8_t *buf, int buf_len)
++// (yotwo) Where a download's time goes, to find what limits its speed: waiting for the
++// server to answer each request, receiving, and writing to the card. Logged once a minute.
++static int64_t s_us_wait, s_us_read, s_us_write, s_stat_since;
++static uint32_t s_stat_bytes, s_stat_segments, s_stat_retries;
++
++static int64_t s_us_starved, s_us_blocked;  // writer waiting for data; receiver waiting for room
++
++static void report_speed(void)
+ {
++    const int64_t now = esp_timer_get_time(), span = now - s_stat_since;
++    if (span < 60 * 1000000LL) return;
++    // The two halves run side by side, so their shares are each of the whole minute.
++    ESP_LOGI(TAG, "speed: %u KB/s, %u segments (%.1f x real time), %u retries; receiver: %d%% waiting for the server, "
++                  "%d%% receiving, %d%% held up by the writer; writer: %d%% writing to the card, %d%% waiting for data",
++             (unsigned)(s_stat_bytes / 1024 * 1000000LL / span), (unsigned)s_stat_segments,
++             s_stat_segments * SEGMENT_SECONDS * 1e6 / span, (unsigned)s_stat_retries, (int)(100 * s_us_wait / span),
++             (int)(100 * s_us_read / span), (int)(100 * s_us_blocked / span), (int)(100 * s_us_write / span),
++             (int)(100 * s_us_starved / span));
++    s_us_wait = s_us_read = s_us_write = s_us_starved = s_us_blocked = 0;
++    s_stat_bytes = s_stat_segments = s_stat_retries = 0;
++    s_stat_since = now;
++}
++
++// (yotwo) Receiving and writing are done side by side: a second task fetches whole
++// segments into memory while this one writes the ones already fetched to the card. Writing
++// is the slow half (the card is wired for SPI), so it should never have to wait for the
++// network. A segment reaches the card only once it has arrived whole, which also keeps the
++// file free of half-segments from failed attempts.
++typedef struct {
++    uint8_t *data;  // PSRAM; grown as needed
++    size_t cap, len;
++    int seg;
++} slot_t;
++
++#define SLOTS 3
++#define SLOT_START (256 * 1024)
++#define SLOT_LIMIT (4 * 1024 * 1024)
++
++typedef struct {
++    const char *base;
++    int first, total;
++    QueueHandle_t free_q, ready_q;  // of slot_t *; a NULL on ready_q means the receiver has finished
++    SemaphoreHandle_t done;
++    volatile bool stop;    // the writer has given up
++    volatile bool failed;  // the receiver could not get a segment
++} pipe_t;
++
++// Fetches one segment whole into `slot`. Retries (404/500 while the server transcodes or re-seeks).
++static bool fetch_segment(const char *base, int seg, slot_t *slot, const volatile bool *stop)
++{
+     char path[128];
+     snprintf(path, sizeof(path), "%soutput-%d.ts", base, seg);
+-    const long start = ftell(audio);
+-    for (int attempt = 0; attempt < SEGMENT_RETRIES && !s_cancel; attempt++) {
++    for (int attempt = 0; attempt < SEGMENT_RETRIES && !s_cancel && !s_paused && !*stop; attempt++) {
+         if (attempt) vTaskDelay(pdMS_TO_TICKS(attempt < 3 ? 500 : 1000));
++        if (attempt) s_stat_retries++;
++        int64_t t = esp_timer_get_time();
+         int status = abs_stream_begin(s_stream, path);
++        s_us_wait += esp_timer_get_time() - t + (attempt ? (attempt < 3 ? 500000 : 1000000) : 0);
+         if (status != 200) {
+             abs_stream_end(s_stream, status > 0);
+             continue;
+         }
+-        fseek(audio, start, SEEK_SET);  // drop anything from a failed attempt
++        slot->len = 0;  // drop anything from a failed attempt
+         bool ok = true;
+         for (;;) {
+-            int n = abs_stream_read(s_stream, (char *)buf, buf_len);
+-            if (n < 0 || s_cancel) {
++            if (slot->cap - slot->len < 4096) {
++                uint8_t *bigger = slot->cap < SLOT_LIMIT ? heap_caps_realloc(slot->data, slot->cap * 2, MALLOC_CAP_SPIRAM) : NULL;
++                if (!bigger) {
++                    ESP_LOGE(TAG, "segment %d is too large to hold (%u bytes so far)", seg, (unsigned)slot->len);
++                    ok = false;
++                    break;
++                }
++                slot->data = bigger;
++                slot->cap *= 2;
++            }
++            t = esp_timer_get_time();
++            int n = abs_stream_read(s_stream, (char *)slot->data + slot->len, 4096);
++            s_us_read += esp_timer_get_time() - t;
++            if (n < 0 || s_cancel || s_paused || *stop) {
+                 ok = false;
+                 break;
+             }
+@@ -152,12 +218,7 @@
+                 ok = abs_stream_complete(s_stream);
+                 break;
+             }
+-            if (fwrite(buf, 1, n, audio) != (size_t)n) {
+-                ESP_LOGE(TAG, "SD write failed (card full?)");
+-                ok = false;
+-                s_cancel = true;
+-                break;
+-            }
++            slot->len += n;
+         }
+         abs_stream_end(s_stream, ok);
+         if (ok) return true;
+@@ -165,14 +226,42 @@
+     return false;
+ }
+ 
++static void receiver_task(void *arg)
++{
++    pipe_t *p = arg;
++    for (int seg = p->first; seg < p->total && !p->stop && !s_cancel && !s_paused; seg++) {
++        slot_t *slot = NULL;
++        const int64_t t = esp_timer_get_time();
++        while (xQueueReceive(p->free_q, &slot, pdMS_TO_TICKS(200)) != pdTRUE) {
++            slot = NULL;
++            if (p->stop || s_cancel || s_paused) break;
++        }
++        s_us_blocked += esp_timer_get_time() - t;
++        if (!slot) break;
++        slot->seg = seg;
++        if (!fetch_segment(p->base, seg, slot, &p->stop)) {
++            if (!s_cancel && !s_paused && !p->stop) p->failed = true;
++            break;
++        }
++        xQueueSend(p->ready_q, &slot, portMAX_DELAY);
++    }
++    slot_t *end = NULL;
++    xQueueSend(p->ready_q, &end, portMAX_DELAY);
++    xSemaphoreGive(p->done);
++    vTaskSuspend(NULL);  // deleted by run()
++}
++
+ // Makes the audio durable, then records the segments it contains in the index.
+ static bool commit(FILE *audio, FILE *index, uint32_t *ends, int *pending)
+ {
+     if (*pending == 0) return true;
+-    if (fflush(audio) != 0 || fsync(fileno(audio)) != 0) return false;
+-    if (fwrite(ends, 4, *pending, index) != (size_t)*pending) return false;
+-    if (fflush(index) != 0 || fsync(fileno(index)) != 0) return false;
++    const int64_t t = esp_timer_get_time();
++    const bool ok = fflush(audio) == 0 && fsync(fileno(audio)) == 0 &&
++                    fwrite(ends, 4, *pending, index) == (size_t)*pending && fflush(index) == 0 && fsync(fileno(index)) == 0;
++    s_us_write += esp_timer_get_time() - t;  // (yotwo)
++    if (!ok) return false;
+     *pending = 0;
++    report_speed();
+     return true;
+ }
+ 
+@@ -225,31 +314,94 @@
+     bump();
+     xSemaphoreGive(s_lock);
+     ESP_LOGI(TAG, "%.8s: downloading from segment %d of %d", id, done, total);
++    // (yotwo) Downloads run only on external power, so the radio need not doze between
++    // packets as it does to save the battery; dozing delays the answer to every request.
++    esp_wifi_set_ps(WIFI_PS_NONE);
++    s_us_wait = s_us_read = s_us_write = 0;
++    s_stat_bytes = s_stat_segments = s_stat_retries = 0;
++    s_stat_since = esp_timer_get_time();
+ 
+     // Internal RAM: SD writes straight from a PSRAM buffer can be corrupted (see storage.c).
+-    const int buf_len = 4096;
++    const int buf_len = 8192;  // (yotwo) was 4096: fewer, larger writes
+     uint8_t *buf = heap_caps_malloc(buf_len, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+     uint32_t ends[SYNC_EVERY];
+     int pending = 0;
+     bool ok = buf != NULL;
+-    for (int seg = done; ok && seg < total && !s_cancel; seg++) {
+-        if (!fetch_segment(base, seg, audio, buf, buf_len)) {
+-            ok = false;
+-            break;
+-        }
+-        ends[pending++] = (uint32_t)ftell(audio);
+-        if (pending == SYNC_EVERY || seg == total - 1) {
+-            if (!commit(audio, index, ends, &pending)) {
++
++    // (yotwo) The receiver and its segment buffers.
++    slot_t slots[SLOTS] = { 0 };
++    pipe_t pipe = { .base = base, .first = done, .total = total };
++    pipe.free_q = xQueueCreate(SLOTS, sizeof(slot_t *));
++    pipe.ready_q = xQueueCreate(SLOTS + 1, sizeof(slot_t *));
++    pipe.done = xSemaphoreCreateBinary();
++    for (int i = 0; i < SLOTS; i++) {
++        slots[i].data = heap_caps_malloc(SLOT_START, MALLOC_CAP_SPIRAM);
++        slots[i].cap = slots[i].data ? SLOT_START : 0;
++        slot_t *sl = &slots[i];
++        if (slots[i].data && pipe.free_q) xQueueSend(pipe.free_q, &sl, 0);
++        else ok = false;
++    }
++    TaskHandle_t receiver = NULL;
++    s_us_starved = s_us_blocked = 0;
++    // The receiver only talks to the network, so its stack can be in PSRAM; on the other
++    // core from this task, which spends most of its time writing to the card.
++    if (ok && pipe.ready_q && pipe.done &&
++        xTaskCreatePinnedToCoreWithCaps(receiver_task, "dl_recv", 8192, &pipe, 2, &receiver, 1, MALLOC_CAP_SPIRAM) != pdPASS) {
++        receiver = NULL;
++    }
++    if (!receiver) ok = false;
++
++    while (receiver) {
++        slot_t *slot = NULL;
++        int64_t t = esp_timer_get_time();
++        xQueueReceive(pipe.ready_q, &slot, portMAX_DELAY);
++        s_us_starved += esp_timer_get_time() - t;
++        if (!slot) break;  // the receiver has finished
++        t = esp_timer_get_time();
++        for (size_t off = 0; ok && off < slot->len;) {
++            const size_t chunk = slot->len - off < (size_t)buf_len ? slot->len - off : (size_t)buf_len;
++            memcpy(buf, slot->data + off, chunk);
++            if (fwrite(buf, 1, chunk, audio) != chunk) {
++                ESP_LOGE(TAG, "SD write failed (card full?)");
+                 ok = false;
+-                break;
++                s_cancel = true;
+             }
+-            xSemaphoreTake(s_lock, portMAX_DELAY);
+-            if ((en = find(id))) en->done = seg + 1;
+-            bump();
+-            xSemaphoreGive(s_lock);
++            off += chunk;
+         }
++        s_us_write += esp_timer_get_time() - t;
++        if (ok) {
++            s_stat_bytes += slot->len;
++            s_stat_segments++;
++            ends[pending++] = (uint32_t)ftell(audio);
++            if (pending == SYNC_EVERY || slot->seg == total - 1) {
++                if (!commit(audio, index, ends, &pending)) {
++                    ok = false;
++                } else {
++                    xSemaphoreTake(s_lock, portMAX_DELAY);
++                    if ((en = find(id))) en->done = slot->seg + 1;
++                    bump();
++                    xSemaphoreGive(s_lock);
++                }
++            }
++        }
++        if (!ok) pipe.stop = true;  // nothing more can be written: the receiver may stop
++        xQueueSend(pipe.free_q, &slot, 0);
++        // Writing keeps this core busy without a break (the SD driver polls), which starved
++        // the idle task until the watchdog complained, four times in one book. A tick's rest
++        // after each segment costs under a second a minute.
++        vTaskDelay(1);
+     }
++    if (receiver) {
++        xSemaphoreTake(pipe.done, portMAX_DELAY);
++        vTaskDeleteWithCaps(receiver);
++    }
++    if (pipe.failed) ok = false;
++    for (int i = 0; i < SLOTS; i++) free(slots[i].data);
++    if (pipe.free_q) vQueueDelete(pipe.free_q);
++    if (pipe.ready_q) vQueueDelete(pipe.ready_q);
++    if (pipe.done) vSemaphoreDelete(pipe.done);
+     commit(audio, index, ends, &pending);
++    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);  // (yotwo) back to saving power
+     free(buf);
+     fclose(audio);
+     fclose(index);
+@@ -302,7 +454,7 @@
+         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30000));
+         for (;;) {
+             process_removals();
+-            if (!wifi_is_connected()) break;
++            if (!wifi_is_connected() || s_paused) break;
+             xSemaphoreTake(s_lock, portMAX_DELAY);
+             entry_t *next = NULL;
+             for (int i = 0; i < s_count && !next; i++) {
+@@ -324,6 +476,8 @@
+                 if (complete) {
+                     en->state = DL_DONE;
+                     en->done = en->total;
++                } else if (s_paused) {
++                    en->state = DL_QUEUED;  // (yotwo) held, not failed: carries on from here later
+                 } else if (++en->failures >= MAX_FAILURES) {
+                     en->state = DL_ERROR;
+                 } else {
+@@ -347,8 +501,34 @@
+     storage_mkdirs(DL_ROOT);
+     scan();
+     s_stream = abs_stream_create();
+-    // Stack in PSRAM: this task does network and SD I/O but never touches the internal flash.
+-    xTaskCreatePinnedToCoreWithCaps(download_task, "download", 8192, NULL, 2, &s_task, 0, MALLOC_CAP_SPIRAM);
++    // (yotwo) Stack in internal memory, not PSRAM as in ABSpresso: this task is on the SD card
++    // all the time, and on this chip SD calls from a PSRAM stack have crashed twice in other
++    // tasks (see hardware/storage.h).
++    xTaskCreatePinnedToCoreWithCaps(download_task, "download", 8192, NULL, 2, &s_task, 0, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
++}
++
++// (yotwo)
++int download_list(dl_info_t *out, int max)
++{
++    if (!s_lock) return 0;
++    int n = 0;
++    xSemaphoreTake(s_lock, portMAX_DELAY);
++    for (int i = 0; i < s_count && n < max; i++) {
++        strlcpy(out[n].id, s_entries[i].id, sizeof(out[n].id));
++        out[n].state = s_entries[i].state;
++        out[n].percent = s_entries[i].state == DL_DONE ? 100
++                         : s_entries[i].total ? 100 * s_entries[i].done / s_entries[i].total : 0;
++        n++;
++    }
++    xSemaphoreGive(s_lock);
++    return n;
++}
++
++// (yotwo)
++void download_set_paused(bool paused)
++{
++    s_paused = paused;
++    if (!paused && s_task) xTaskNotifyGive(s_task);
+ }
+ 
+ esp_err_t download_start(const abs_book_t *book)
+--- a/app/download.h
++++ b/app/download.h
+@@ -30,6 +30,16 @@
+ // the deletion happens in the background.
+ void download_remove(const char *item_id);
+ dl_state_t download_state(const char *item_id, int *percent);
++// (yotwo) Every download known (queued, running, complete or failed), up to `max`.
++typedef struct {
++    char id[40];
++    dl_state_t state;
++    int percent;
++} dl_info_t;
++int download_list(dl_info_t *out, int max);
++// (yotwo) Holds all downloading (the one in progress stops within a segment and keeps what it
++// has) or lets it carry on.
++void download_set_paused(bool paused);
+ // Changes whenever any download starts, progresses, finishes or is removed.
+ uint32_t download_generation(void);
+ // True while anything is queued, downloading or being removed.
+--- a/app/player.c
++++ b/app/player.c
+@@ -37,6 +37,11 @@
+ #define SEGMENT_MAX_RETRIES 40
+ #define START_THRESHOLD     (48 * 1024)    // bytes buffered before the first decode
+ 
++// Byte-addressable internal RAM. MALLOC_CAP_INTERNAL alone isn't enough on the original ESP32,
++// where it can return the IRAM heap, which only allows aligned 32-bit access (a memcpy into it
++// raises LoadStoreError).
++#define INTERNAL_RAM (MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
++
+ typedef enum {
+     CMD_OPEN,
+     CMD_TOGGLE,
+@@ -188,7 +193,7 @@
+ static void fetch_task(void *arg)
+ {
+     const int buf_len = 4096;
+-    char *buf = heap_caps_malloc(buf_len, MALLOC_CAP_INTERNAL);
++    char *buf = heap_caps_malloc(buf_len, INTERNAL_RAM);
+     for (;;) {
+         xEventGroupSetBits(s_idle, BIT_FETCH_IDLE);
+         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+@@ -268,7 +273,7 @@
+             esp_audio_simple_dec_out_t out = {.buffer = *pcm, .len = *pcm_len};
+             esp_audio_err_t ret = esp_audio_simple_dec_process(dec, &raw, &out);
+             if (ret == ESP_AUDIO_ERR_BUFF_NOT_ENOUGH) {
+-                uint8_t *bigger = heap_caps_realloc(*pcm, out.needed_size, MALLOC_CAP_INTERNAL);
++                uint8_t *bigger = heap_caps_realloc(*pcm, out.needed_size, INTERNAL_RAM);
+                 if (!bigger) break;
+                 *pcm = bigger;
+                 *pcm_len = out.needed_size;
+@@ -345,9 +350,9 @@
+ static void decode_task(void *arg)
+ {
+     const int in_len = 4096;
+-    uint8_t *in = heap_caps_malloc(in_len, MALLOC_CAP_INTERNAL);
++    uint8_t *in = heap_caps_malloc(in_len, INTERNAL_RAM);
+     uint32_t pcm_len = 8192;
+-    uint8_t *pcm = heap_caps_malloc(pcm_len, MALLOC_CAP_INTERNAL);
++    uint8_t *pcm = heap_caps_malloc(pcm_len, INTERNAL_RAM);
+     for (;;) {
+         xEventGroupSetBits(s_idle, BIT_DECODE_IDLE);
+         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+@@ -523,8 +528,10 @@
+         strlcpy(job.session, s_session.id, sizeof(job.session));
+         queue_job(&job);
+     }
++    xSemaphoreTake(s_lock, portMAX_DELAY);  // player_get_chapter() reads the chapters
+     abs_free_session(&s_session);
+     s_have_session = false;
++    xSemaphoreGive(s_lock);
+     s_listen_since_sync = 0;
+     board_audio_close();
+ }
+@@ -541,6 +548,15 @@
+         double pos;
+         bool pending;
+         s_session.current_time = (download_get_progress(item_id, &pos, &pending) && pending) ? pos : s_book_time;
++        // (yotwo) With nothing waiting to be sent, the server knows best where the listener
++        // is: the book may have been heard elsewhere since the library was loaded, or opened
++        // by a card without its library, when s_book_time is 0. Starting there would play
++        // from the wrong place and then tell the server so.
++        double server_time;
++        if (!(download_get_progress(item_id, &pos, &pending) && pending) && wifi_is_connected() &&
++            abs_get_progress(item_id, &server_time) == ESP_OK) {
++            s_session.current_time = server_time;
++        }
+         ESP_LOGI(TAG, "playing download from %.0f s", s_session.current_time);
+         s_have_session = true;
+         s_last_sync_us = esp_timer_get_time();
+@@ -809,6 +825,22 @@
+         nvs_commit(h);
+         nvs_close(h);
+     }
++}
++
++bool player_get_chapter(int index, char *title, size_t len, double *start, double *end)
++{
++    if (!s_lock) return false;
++    bool ok = false;
++    xSemaphoreTake(s_lock, portMAX_DELAY);
++    if (s_have_session && index >= 0 && index < s_session.chapter_count) {
++        const abs_chapter_t *c = &s_session.chapters[index];
++        if (title && len) strlcpy(title, c->title ? c->title : "", len);
++        if (start) *start = c->start;
++        if (end) *end = c->end;
++        ok = true;
++    }
++    xSemaphoreGive(s_lock);
++    return ok;
+ }
+ 
+ void player_get_status(player_status_t *out)
+--- a/app/player.h
++++ b/app/player.h
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <stdbool.h>
++#include <stddef.h>
+ #include "abs_api.h"
+ 
+ typedef enum {
+@@ -45,3 +46,6 @@
+ void player_set_volume(int volume);
+ 
+ void player_get_status(player_status_t *out);
++// Title and time range (seconds) of chapter `index` of the open book; any output may be NULL.
++// False if nothing is open or there is no such chapter.
++bool player_get_chapter(int index, char *title, size_t len, double *start, double *end);
+--- a/network/abs_api.c
++++ b/network/abs_api.c
+@@ -97,6 +97,8 @@
+ }
+ 
+ static bool try_refresh(uint32_t failed_gen);
++// (yotwo) The saved server password, if the firmware keeps one (setup/credential.c).
++bool credential_load(char *out, size_t len) __attribute__((weak));
+ 
+ // Performs a request and returns the body (NUL-terminated, PSRAM) in *out and its length in *out_len.
+ // With `keep`, the connection is reused across calls (skipping a multi-second TLS handshake each
+@@ -157,6 +159,16 @@
+         len += n;
+     }
+     complete = esp_http_client_is_complete_data_received(c);
++    if (buf && status == 200 && !complete) {
++        // (yotwo) The connection failed part-way through the reply. What arrived is not the
++        // answer: a collection read this way came back as "no books", the favourites were
++        // dropped for it and their downloaded copies deleted (2026-10-08).
++        ESP_LOGW(TAG, "%s: reply cut short after %u bytes; discarded", path, (unsigned)len);
++        free(buf);
++        buf = NULL;
++        status = -1;
++        goto done;
++    }
+     if (buf) {
+         buf[len] = 0;
+         if (out_len) *out_len = len;
+@@ -204,6 +216,29 @@
+ // Progress sync, session close and progress PATCH are small and frequent: they share one kept-open
+ // connection (saving a multi-second TLS handshake each time), serialised because several tasks
+ // may call them.
++// (yotwo)
++esp_err_t abs_get_progress(const char *item_id, double *current_time)
++{
++    char path[96], *body = NULL;
++    snprintf(path, sizeof(path), "/api/me/progress/%s", item_id);
++    const int status = request(HTTP_METHOD_GET, path, NULL, &body);
++    esp_err_t err = status == 404 ? ESP_ERR_NOT_FOUND : ESP_FAIL;
++    const char *p = status == 200 && body ? strstr(body, "\"currentTime\":") : NULL;
++    if (p) {
++        *current_time = strtod(p + 14, NULL);
++        err = ESP_OK;
++    }
++    free(body);
++    return err;
++}
++
++int abs_api_call(const char *method, const char *path, const char *body, char **out)
++{
++    const esp_http_client_method_t m = strcmp(method, "POST") == 0 ? HTTP_METHOD_POST
++                                     : strcmp(method, "DELETE") == 0 ? HTTP_METHOD_DELETE : HTTP_METHOD_GET;
++    return request(m, path, body, out);
++}
++
+ static int sync_request(esp_http_client_method_t method, const char *path, const char *body)
+ {
+     xSemaphoreTake(s_sync_lock, portMAX_DELAY);
+@@ -259,6 +294,7 @@
+             b->author = psram_strdup(json_str(meta, "authorName") ?: "");
+             b->duration = json_num(media, "duration");
+         }
++        b->series = psram_strdup(json_str(meta, "seriesName") ?: "");
+     }
+     cJSON_Delete(root);
+ 
+@@ -502,6 +538,7 @@
+         free(books[i].title);
+         free(books[i].sort_title);
+         free(books[i].author);
++        free(books[i].series);
+     }
+     free(books);
+ }
+@@ -687,8 +724,30 @@
+ 
+ // Tokens from a /login or /auth/refresh response (user.accessToken / user.refreshToken, or the
+ // pre-2.26 user.token).
++// (yotwo) Copies the string value of "key" straight out of the text, without building the
++// whole document. The reply to a sign-in or a renewal carries the user's entire listening
++// history, and parsing that takes thousands of small allocations; were one to fail, the
++// new tokens would be lost after the server had already retired the old ones.
++static bool scan_token(const char *json, const char *key, char *out, size_t len)
++{
++    char pat[32];
++    snprintf(pat, sizeof(pat), "\"%s\":\"", key);
++    const char *p = json ? strstr(json, pat) : NULL;
++    if (!p) return false;
++    p += strlen(pat);
++    const char *end = strchr(p, '"');
++    if (!end || end == p || (size_t)(end - p) >= len || memchr(p, '\\', end - p)) return false;
++    memcpy(out, p, end - p);
++    out[end - p] = 0;
++    return true;
++}
++
+ static bool parse_tokens(const char *json, char *access, size_t alen, char *refresh, size_t rlen)
+ {
++    if (scan_token(json, "accessToken", access, alen)) {
++        if (refresh && !scan_token(json, "refreshToken", refresh, rlen)) refresh[0] = 0;
++        return true;
++    }
+     cJSON *root = json ? cJSON_Parse(json) : NULL;
+     const cJSON *user = cJSON_GetObjectItem(root, "user");
+     const char *a = json_str(user, "accessToken");
+@@ -708,11 +767,34 @@
+     xSemaphoreTake(s_refresh_lock, portMAX_DELAY);
+     if (s_auth_gen != failed_gen) {
+         ok = true;  // someone else already renewed it; just retry
++    } else if (s_signed_out) {
++        // (yotwo) Already refused: asking again cannot help, and counts against the server's limit on sign-in attempts.
+     } else if (config_get()->refresh[0]) {
+         char *body = NULL;
+         char *access = heap_caps_malloc(1024, MALLOC_CAP_SPIRAM), *refresh = heap_caps_malloc(1024, MALLOC_CAP_SPIRAM);
+-        int status = raw_request(s_base, HTTP_METHOD_POST, "/auth/refresh", NULL, config_get()->refresh, NULL, &body);
+-        if (status == 200 && parse_tokens(body, access, 1024, refresh, 1024)) {
++        // (yotwo) The server retires the refresh token as it answers, and honours the old one
++        // for only ten minutes more. A reply that is lost or unreadable is therefore asked for
++        // again at once, rather than left to whichever request comes next.
++        int status = 0;
++        bool parsed = false;
++        for (int attempt = 0; attempt < 4 && !parsed; attempt++) {
++            if (attempt) {
++                ESP_LOGW(TAG, "renewal attempt %d failed (%d, reply %d bytes); trying again", attempt, status,
++                         body ? (int)strlen(body) : 0);
++                vTaskDelay(pdMS_TO_TICKS(1500));
++            }
++            free(body);
++            body = NULL;
++            status = raw_request(s_base, HTTP_METHOD_POST, "/auth/refresh", NULL, config_get()->refresh, NULL, &body);
++            if (status == 401 || status == 403) break;
++            parsed = status == 200 && access && refresh && parse_tokens(body, access, 1024, refresh, 1024);
++        }
++        if (parsed) {
++            ESP_LOGI(TAG, "renewal reply %d bytes", (int)strlen(body));
++            // (yotwo) Which of these happened decides whether the next renewal can work.
++            ESP_LOGI(TAG, "renewal: access token %d chars; refresh token %s", (int)strlen(access),
++                     !refresh[0] ? "not returned (keeping the old one)"
++                     : strcmp(refresh, config_get()->refresh) == 0 ? "returned unchanged" : "replaced by a new one");
+             config_set_tokens(access, refresh[0] ? refresh : config_get()->refresh);
+             xSemaphoreTake(s_auth_lock, portMAX_DELAY);
+             snprintf(s_auth, 1100, "Bearer %s", access);
+@@ -722,7 +804,33 @@
+             ok = true;
+         } else {
+             ESP_LOGW(TAG, "token refresh failed (%d); sign in again from Settings", status);
+-            if (status == 401 || status == 403) s_signed_out = true;
++            ESP_LOGW(TAG, "(the refresh token sent was %d chars; reply: %.80s)", (int)strlen(config_get()->refresh),
++                     body ? body : "none");
++            if ((status == 401 || status == 403) && access && refresh) {
++                // (yotwo) The session is over. With the password kept on the player, sign in
++                // afresh; only if the server refuses that too is the player signed out.
++                char pw[128];
++                abs_auth_result_t r = ABS_AUTH_REJECTED;
++                const bool kept = credential_load && config_get()->username[0] && credential_load(pw, sizeof(pw));
++                if (kept) {
++                    r = abs_login(s_base, config_get()->username, pw, access, 1024, refresh, 1024);
++                    memset(pw, 0, sizeof(pw));
++                }
++                if (r == ABS_AUTH_OK) {
++                    config_set_tokens(access, refresh);
++                    xSemaphoreTake(s_auth_lock, portMAX_DELAY);
++                    snprintf(s_auth, 1100, "Bearer %s", access);
++                    s_auth_gen++;
++                    xSemaphoreGive(s_auth_lock);
++                    ESP_LOGI(TAG, "signed in again with the saved password");
++                    ok = true;
++                } else if (!kept || r == ABS_AUTH_REJECTED) {
++                    if (kept) ESP_LOGW(TAG, "the saved password was refused too");
++                    s_signed_out = true;
++                } else {
++                    ESP_LOGW(TAG, "could not reach the server to sign in again; will try later");
++                }
++            }
+         }
+         free(body);
+         free(access);
+--- a/network/abs_api.h
++++ b/network/abs_api.h
+@@ -12,6 +12,7 @@
+     char *title;
+     char *sort_title;      // title without a leading "The"/"A" (server-provided), for A-Z
+     char *author;          // may list several authors separated by ", "
++    char *series;          // e.g. "Discworld #3" (may list several, ", "-separated); "" if none
+     double duration;
+     double current_time;   // saved progress, seconds
+     float progress;        // 0..1
+@@ -95,6 +96,12 @@
+ esp_err_t abs_parse_books(const char *items_json, const char *me_json, abs_book_t **out_books, int *out_count);
+ void abs_free_books(abs_book_t *books, int count);
+ 
++// A JSON call to any endpoint, for features built outside this file. `method` is "GET",
++// "POST" or "DELETE"; `body` may be NULL. Returns the HTTP status (<0 if it could not be
++// made); the response body, if wanted, is returned in *out (PSRAM, NUL-terminated, caller
++// frees). Blocks; opens its own connection, so any task may call it.
++int abs_api_call(const char *method, const char *path, const char *body, char **out);
++
+ // Starts an HLS (transcoded) playback session at the saved position. episode_id is NULL/"" for
+ // books, or the episode to play for podcasts.
+ esp_err_t abs_start_session(const char *item_id, const char *episode_id, bool for_download, abs_session_t *out);
+@@ -102,6 +109,9 @@
+ esp_err_t abs_sync_session(const char *session_id, double current_time, double time_listening, double duration);
+ esp_err_t abs_close_session(const char *session_id, double current_time, double time_listening);
+ // Sets progress directly, without a playback session (used for downloaded books).
++// (yotwo) Where the user has got to in an item, from the server. ESP_ERR_NOT_FOUND if it has
++// never been started; ESP_FAIL if the server could not be asked.
++esp_err_t abs_get_progress(const char *item_id, double *current_time);
+ esp_err_t abs_patch_progress(const char *item_id, double current_time, double duration, bool finished);
+ 
+ // Downloads the item's cover as a JPEG scaled to `width` px wide. Caller frees *out.
+--- a/network/wifi.c
++++ b/network/wifi.c
+@@ -85,7 +85,7 @@
+         .ap = {
+             .channel = channel,
+             .max_connection = 2,
+-            .authmode = WIFI_AUTH_WPA2_PSK,
++            .authmode = password[0] ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN,  // (yotwo) open when no password is given
+         },
+     };
+     strlcpy((char *)ap.ap.ssid, ssid, sizeof(ap.ap.ssid));

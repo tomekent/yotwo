@@ -1,0 +1,16 @@
+# Yoto Player Gen 2: 8 MB flash. This replaces the stock layout; restoring the stock
+# firmware means writing the full backup image.
+#
+# Two firmware slots, so the player can be updated over Wi-Fi from its own web page: a new
+# image is written to the slot that is not running, tried once, and kept only if it starts
+# up properly; otherwise the bootloader goes back to the other slot.
+#
+# nvs and phy_init are where they have always been, so settings survive the change from the
+# earlier single-slot layout, and ota_0 starts where the old "factory" app did.
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x9000,   0x6000,
+phy_init, data, phy,      0xf000,   0x1000,
+ota_0,    app,  ota_0,    0x10000,  0x3C0000,
+ota_1,    app,  ota_1,    0x3D0000, 0x3C0000,
+otadata,  data, ota,      0x790000, 0x2000,
+coredump, data, coredump, 0x792000, 0x10000,

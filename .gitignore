@@ -1,0 +1,20 @@
+.DS_Store
+__pycache__/
+
+# Flash backups hold the player's Wi-Fi password and device keys: never commit them
+*backup*.bin
+*.bin.parts/
+
+# Serial captures can include your Wi-Fi name, server address and account name
+logs/
+*.log
+
+# Release files live on GitHub Releases (tools/publish_release.sh); only the
+# boot files and the table of hashes are tracked
+firmware/releases/*.bin
+firmware/releases/*.zip
+
+# Editor and language-server caches
+.cache/
+.vscode/
+.idea/

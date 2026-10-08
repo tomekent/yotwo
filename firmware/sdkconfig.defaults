@@ -1,0 +1,74 @@
+# Yoto Player Gen 2: ESP32-D0WD rev 1, 8 MB flash, external PSRAM, console on UART0.
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# The serial link to this board drops bytes above 115200 and has no auto-reset wiring.
+# (Flash speed is not a Kconfig option: pass `-b 115200` to idf.py when flashing.)
+CONFIG_ESPTOOLPY_BEFORE_NORESET=y
+CONFIG_ESPTOOLPY_AFTER_NORESET=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+
+# PSRAM. Size unconfirmed, so detect it and carry on without if absent (bring-up builds).
+# Rev 1 silicon needs the cache workaround, which IDF enables by default for rev < 3.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_TYPE_AUTO=y
+CONFIG_SPIRAM_SPEED_40M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y
+# Only small allocations prefer internal RAM. With ABSpresso's 4096 the internal heap fell to
+# 12 KB free during a library switch on this chip, which has far less of it than the S3.
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=256
+CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
+# ABSpresso's shared code creates some tasks with PSRAM stacks.
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
+
+# As ABSpresso.
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=64
+CONFIG_ESP_WIFI_RX_BA_WIN=16
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=8
+CONFIG_LWIP_TCP_WND_DEFAULT=65535
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
+CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=y
+CONFIG_FATFS_LFN_HEAP=y
+CONFIG_FATFS_MAX_LFN=255
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
+
+# IRAM is tight on the original ESP32 once the PSRAM cache workaround is in: the first
+# link overflowed by 5.3 KB. Keep Wi-Fi's receive path and FreeRTOS's non-ISR functions in
+# flash, and drop PSRAM bank switching (only needed above 4 MB).
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y
+CONFIG_SPIRAM_BANKSWITCH_ENABLE=n
+
+# The flash chip identifies as Boya (seen in the first boot log).
+CONFIG_SPI_FLASH_SUPPORT_BOYA_CHIP=y
+
+# A TLS handshake's elliptic-curve maths can hold core 0 for several seconds on this chip
+# while audio is decoding; the default 5 s idle watchdog fired once (as a warning) in use.
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=15
+
+# Use esp_jpeg's own TJpgDec rather than the older copy in the ESP32's ROM, which rejected
+# about a third of one library's covers as an unsupported JPEG variant (error 8).
+CONFIG_JD_USE_ROM=n
+
+# The default build is -Og. Optimising for speed makes the TLS handshakes' big-number
+# maths (the slowest thing this chip does, and what kept tripping the idle watchdog at
+# start-up) considerably quicker.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Sockets: playback, a download, favourites sync and cover fetches each hold one, and the
+# setup page's web server needs several more. The default of 10 ran out during setup.
+CONFIG_LWIP_MAX_SOCKETS=16
+
+# Over-the-air updates: a new image is on trial at its first start, and the bootloader goes
+# back to the previous one unless the app says it is good (see web/ota.c).
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y

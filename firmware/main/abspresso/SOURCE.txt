@@ -1,0 +1,5 @@
+Source: https://github.com/tomekent/Esp32-1.85-touch.git
+Commit: 8a203d2d5e9d804c00787a49bcbb0b190b17dd59
+Dirty:  0 modified file(s) under main/
+Local:  4 file(s) changed by local.patch
+Synced: 2026-10-05
