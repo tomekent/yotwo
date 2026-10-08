@@ -172,7 +172,7 @@
      return true;
  }
  
-@@ -225,31 +314,94 @@
+@@ -225,31 +314,98 @@
      bump();
      xSemaphoreGive(s_lock);
      ESP_LOGI(TAG, "%.8s: downloading from segment %d of %d", id, done, total);
@@ -243,6 +243,10 @@
 -            bump();
 -            xSemaphoreGive(s_lock);
 +            off += chunk;
++            // Writing a whole segment is a long stretch on core 0 (the SD driver polls), which
++            // starved the idle task there enough for the watchdog to grumble during a flat-out
++            // download. A rest every 64 KB lets it run; the cost is far below the card's speed.
++            if ((off & 0xFFFF) < (size_t)buf_len) vTaskDelay(1);
          }
 +        s_us_write += esp_timer_get_time() - t;
 +        if (ok) {
@@ -281,7 +285,7 @@
      free(buf);
      fclose(audio);
      fclose(index);
-@@ -302,7 +454,7 @@
+@@ -302,7 +458,7 @@
          ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30000));
          for (;;) {
              process_removals();
@@ -290,7 +294,7 @@
              xSemaphoreTake(s_lock, portMAX_DELAY);
              entry_t *next = NULL;
              for (int i = 0; i < s_count && !next; i++) {
-@@ -324,6 +476,8 @@
+@@ -324,6 +480,8 @@
                  if (complete) {
                      en->state = DL_DONE;
                      en->done = en->total;
@@ -299,7 +303,7 @@
                  } else if (++en->failures >= MAX_FAILURES) {
                      en->state = DL_ERROR;
                  } else {
-@@ -347,8 +501,34 @@
+@@ -347,8 +505,34 @@
      storage_mkdirs(DL_ROOT);
      scan();
      s_stream = abs_stream_create();

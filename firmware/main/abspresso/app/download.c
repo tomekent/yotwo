@@ -367,6 +367,10 @@ static bool run(entry_t *en_snapshot)
                 s_cancel = true;
             }
             off += chunk;
+            // Writing a whole segment is a long stretch on core 0 (the SD driver polls), which
+            // starved the idle task there enough for the watchdog to grumble during a flat-out
+            // download. A rest every 64 KB lets it run; the cost is far below the card's speed.
+            if ((off & 0xFFFF) < (size_t)buf_len) vTaskDelay(1);
         }
         s_us_write += esp_timer_get_time() - t;
         if (ok) {
