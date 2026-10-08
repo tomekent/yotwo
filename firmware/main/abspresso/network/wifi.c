@@ -54,6 +54,14 @@ esp_err_t wifi_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &cfg));
     ESP_ERROR_CHECK(esp_wifi_start());
+    // (yotwo) Cap the transmit power to 15 dBm (units are 0.25 dBm; 60 = 15, default 80 = 20).
+    // The full-power transmit burst as the radio associates drew enough current to brown out a
+    // tired battery on this board (repeated "E BOD" resets just after "asking for the time");
+    // 15 dBm is ample for a home network and markedly cuts that current spike.
+    esp_wifi_set_max_tx_power(60);
+    int8_t tx = 0;
+    esp_wifi_get_max_tx_power(&tx);
+    ESP_LOGI(TAG, "Wi-Fi transmit power capped at %d (%.1f dBm)", tx, tx / 4.0);
     // Modem sleep between beacons saves a lot of power; the ~minute of buffered audio rides out
     // the added latency.
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
