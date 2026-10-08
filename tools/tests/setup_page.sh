@@ -14,7 +14,7 @@ GIVE = r'cJSON_Add\w+ToObject\(o, "(\w+)"'
 def keys(rx, text): return {a or b for a, b in re.findall(rx, text)} if '|' in rx else set(re.findall(rx, text))
 settings_read, settings_given = keys(READ, settings), keys(GIVE, settings)
 total = 0
-def check(label, header, var, read, given, save_rx):
+def check(label, header, var, read, given, save_rx, complete=True):
     global total
     fails = []
     src = open(header).read()
@@ -26,10 +26,12 @@ def check(label, header, var, read, given, save_rx):
     body = re.search(save_rx, js, re.S).group(1)
     sent = set(re.findall(r'(?:^|,)(\w+):', body))
     for f in sorted(sent - read): fails.append(f"page sends '{f}' but the firmware does not read it")
-    for f in sorted(read - sent): fails.append(f"firmware reads '{f}' but the page does not send it")
+    if complete:
+        for f in sorted(read - sent): fails.append(f"firmware reads '{f}' but the page does not send it")
     shown = set(re.findall(r'\bc\.(\w+)', js))
     for f in sorted(shown - given): fails.append(f"page shows 'c.{f}' but the firmware does not give it")
-    for f in sorted(settings_given - shown): fails.append(f"firmware gives setting '{f}' but the page does not show it")
+    if complete:  # the setup page leaves some settings to the player and its web page
+        for f in sorted(settings_given - shown): fails.append(f"firmware gives setting '{f}' but the page does not show it")
     if shutil.which('node'):
         with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False) as t: t.write(js)
         r = subprocess.run(['node', '--check', t.name], capture_output=True, text=True); os.unlink(t.name)
@@ -40,7 +42,7 @@ def check(label, header, var, read, given, save_rx):
 # The setup page: Wi-Fi, server and sign-in (setup_portal.c) plus the shared settings.
 portal_cfg = portal.split('static esp_err_t on_scan')[0].split('static esp_err_t on_config')[1]
 check('setup page', 'firmware/main/setup/setup_page.h', 'SETUP_PAGE',
-      keys(READ, portal) | settings_read, keys(GIVE, portal_cfg) | settings_given, r"const b=\{(.*?)\};")
+      keys(READ, portal) | settings_read, keys(GIVE, portal_cfg) | settings_given, r"const b=\{(.*?)\};", complete=False)
 # The player's web page: the shared settings only.
 check('web page', 'firmware/main/web/web_page.h', 'WEB_PAGE', settings_read, settings_given, r"const b=\{(.*?)\};")
 if not shutil.which('node'): print('(node not found: script syntax not checked)')

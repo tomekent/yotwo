@@ -11,7 +11,9 @@
 #include "nvs_flash.h"
 #include "abs_api.h"
 #include "battery.h"
+#include "accel.h"
 #include "board.h"
+#include "ring.h"
 #include "cards.h"
 #include "catalog.h"
 #include "config.h"
@@ -111,6 +113,8 @@ void app_main(void)
     ESP_ERROR_CHECK(board_err);
 
     ESP_ERROR_CHECK(display_init());
+    ring_init();
+    accel_init(board_i2c_bus());  // carries on without the face-down nightlight if missing
     QueueHandle_t events = NULL;
     if (input_init(&events) != ESP_OK) {
         ESP_LOGE(TAG, "no controls");

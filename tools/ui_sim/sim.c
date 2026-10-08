@@ -13,6 +13,8 @@
 //            card:X nocard a card put in (A = a book card, S = a sleep card, else new), taken out
 //            time:H:M[:S]  set the time of day (the clock shows after 30 s idle)
 //            dl:N dlrun dlhold  the first book's copy: N % arrived (-1 none), being fetched or held
+//            face:1 face:0  lying on its face, or not
+//            wake:1        the wake light on
 //            wifi:0 wifi:1 Wi-Fi gone (offline mode) or back; books 0 and 5 are downloaded
 //            endless       books play on for ever instead of ending
 //            mN            advance N minutes
@@ -95,6 +97,12 @@ void host_card_make_sleep(int m) { s_cards[card_put('s')].minutes = m; printf(" 
 void host_card_clear(void) { const int i = card_slot(); if (i >= 0) { s_cards[i] = s_cards[--s_ncards]; printf("  [host] card %s forgotten\n", s_slot); } }
 void host_set_brightness(int percent) { printf("  [host] brightness %d\n", percent); }
 static int s_vol_limit = 80;
+static bool s_face;
+static int s_light[5] = { 1, 0xFF0000, 50, 0, 10 };
+void host_set_ring(unsigned rgb) { printf("  [host] ring %06X\n", rgb); }
+bool host_face_down(void) { return s_face; }
+int host_light_setting(ui_light_setting_t w) { return s_light[w]; }
+void host_set_light_setting(ui_light_setting_t w, int v) { s_light[w] = v; printf("  [host] light setting %d = %d\n", w, v); }
 int host_volume_limit(void) { return s_vol_limit; }
 void host_set_volume_limit(int percent) { s_vol_limit = percent; printf("  [host] volume limit %d\n", percent); }
 static int s_auto_off = 60;
@@ -281,6 +289,8 @@ int main(int argc, char **argv)
         else if (!strcmp(a, "plug")) { s_bat.plugged = true; ev.type = UI_EV_PLUGGED; }
         else if (!strcmp(a, "unplug")) { s_bat.plugged = false; ev.type = UI_EV_UNPLUGGED; }
         else if (!strcmp(a, "endless")) { s_endless = true; continue; }
+        else if (!strncmp(a, "face:", 5)) { s_face = a[5] == '1'; continue; }
+        else if (!strncmp(a, "wake:", 5)) { s_light[3] = a[5] == '1'; continue; }
         else if (!strncmp(a, "wifi:", 5)) { s_no_wifi = a[5] == '0'; continue; }
         else if (!strncmp(a, "dl:", 3)) { s_dl = atoi(a + 3); continue; }
         else if (!strcmp(a, "dlrun")) { s_dl_run = true; continue; }

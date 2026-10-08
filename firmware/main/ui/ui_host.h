@@ -98,6 +98,15 @@ void host_set_brightness(int percent);
 bool host_on_battery(void);
 // 0 = fine (or on external power), 1 = nearly empty, 2 = empty: switch off.
 int host_battery_alarm(void);
+// The LED ring. host_set_ring() is given the final colour, 0xRRGGBB, brightness already
+// applied (0 = off). The settings: UI_LIGHT_NIGHT 0/1 (the nightlight when face-down),
+// UI_LIGHT_COLOUR 0xRRGGBB, UI_LIGHT_BRIGHT 10-100 %, UI_LIGHT_WAKE 0/1 (the wake light
+// with the clock's sunrise), UI_LIGHT_HOLD minutes it stays on once the sun is up (5-15).
+typedef enum { UI_LIGHT_NIGHT, UI_LIGHT_COLOUR, UI_LIGHT_BRIGHT, UI_LIGHT_WAKE, UI_LIGHT_HOLD } ui_light_setting_t;
+void host_set_ring(unsigned rgb);
+bool host_face_down(void);
+int host_light_setting(ui_light_setting_t which);
+void host_set_light_setting(ui_light_setting_t which, int value);
 // The loudest the player may go, percent of its full output (10-100). host_set_volume() and
 // the volume in ui_playback_t stay 0-100: that range is spread over 0 to the limit.
 int host_volume_limit(void);

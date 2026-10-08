@@ -13,7 +13,7 @@
 //                A-Z (the alphabet, then titles from that letter), AUTH (authors, then their
 //                books), SERI (series, then their books in order), BED (sleep timer), SET
 //                (settings: LIB library, VIEW cover art or text, READ readability mode,
-//                SPD scroll speed, CARD the card in the slot, EXT sleep extension, CLK the clock, AUTO switching off, VOL the volume limit, SIGN
+//                SPD scroll speed, CARD the card in the slot, EXT sleep extension, CLK the clock, AUTO switching off, VOL the volume limit, LITE the LED ring, SIGN
 //                Wi-Fi and sign-in from a phone).
 //   Lists      = all drawn alike: a picture or icon on top, the name along the bottom,
 //                a position line on the bottom row. They wrap round at both ends.

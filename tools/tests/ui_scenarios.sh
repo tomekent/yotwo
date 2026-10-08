@@ -64,10 +64,10 @@ hasnt "a low battery only warns"                             'power off'        
 hasnt "an empty battery on the charger does not"             'power off'          boot t80 plug bat:1 t300
 
 # --- settings
-has   "SET > AUTO sets the switch-off time"                  'auto-off 120'       boot t80 rh r- rp r- r- r- rp r+ rp
-has   "SET > CLK > RISE sets the sunrise"                    'clock setting 1 = 435' boot t80 rh r- rp r- r- r- r- rp r+ rp r+ rp
-has   "SET > VOL sets the volume limit (default 80, in tens)" 'volume limit 90'    boot t80 rh r- rp r- r- rp r+ rp
-has   "...and shows the current limit first"                 'W\.W\.WWW|WWW\.WWW' boot t80 rh r- rp r- r- rp show
+has   "SET > AUTO sets the switch-off time"                  'auto-off 120'       boot t80 rh r- rp r- r- r- r- rp r+ rp
+has   "SET > CLK > RISE sets the sunrise"                    'clock setting 1 = 435' boot t80 rh r- rp r- r- r- r- r- rp r+ rp r+ rp
+has   "SET > VOL sets the volume limit (default 80, in tens)" 'volume limit 90'    boot t80 rh r- rp r- r- r- rp r+ rp
+has   "...and shows the current limit first"                 'W\.W\.WWW|WWW\.WWW' boot t80 rh r- rp r- r- r- rp show
 has   "SET > SIGN starts setup, and a hold leaves it"        'setup stopped'      boot t80 rh r- rp r- rp rh
 has   "a hold on the start-up screen opens setup"            'setup started'      status:WIFI rh
 hasnt "a hold elsewhere does not"                            'setup started'      boot t80 rh rh rh
@@ -104,5 +104,22 @@ has   "offline, left press carries on with a downloaded book" 'play "Room on the
 has   "online, left press carries on with the last book whatever it is" 'play "Charlie and the Great Glass Elevator"' boot t80 lp
 has   "Wi-Fi back: every book is on offer again"             'play "Charlie and the Great Glass Elevator"' boot t80 wifi:0 t60 wifi:1 t60 lp
 hasnt "a book playing from the card is left alone when Wi-Fi goes" 'pause' endless boot t80 rh r+ r+ r+ rp rp t40 wifi:0 t100
+# --- the LED ring: nightlight face-down, the wake light at sunrise (defaults: red, 50 %,
+#     sunrise 7:00 over 15 min, held 10 min). Ring values are the final colour sent.
+hasnt "upright: the ring stays dark"                         'ring [1-9A-F]'        boot t80 t100
+has   "face-down: the nightlight, red at 50 %"               'ring 7F0000'          boot t80 face:1 t5
+has   "face-down: the display is dark"                       '^    \.{16}$'          boot t80 face:1 t5 show
+seq_  "picked up again: the ring goes off"                   'ring 7F0000|ring 000000|' boot t80 face:1 t5 face:0 t5
+has   "SET > LITE > COL previews the colour on the ring"     'ring 7F2D00'          boot t80 rh r- rp r- r- rp r+ rp r+
+has   "...and choosing it keeps it"                          'light setting 1 = 16734720' boot t80 rh r- rp r- r- rp r+ rp r+ rp
+hasnt "the wake light is off unless turned on"               'ring [1-9A-F]'        boot t80 time:7:05 t5
+has   "wake light: half-way up the sunrise, half the brightness, warm orange" 'ring 3F1A05' boot t80 wake:1 time:7:07:30 t5
+has   "wake light: full once the sun is up"                  'ring 7F350A'          boot t80 wake:1 time:7:15:00 t5
+has   "...and on whichever way up the player is"             'ring 7F350A'          boot t80 wake:1 face:0 time:7:20 t5
+seq_  "...and off after the hold (10 min)"                   'ring 7F350A|ring 000000|' boot t80 wake:1 time:7:20 t5 time:7:25:01 t5
+seq_  "a button during the wake light turns it off"          'ring 7F350A|ring 000000|' boot t80 wake:1 time:7:20 t5 rp t5
+noseq "...and that press does nothing else"                  'play "'               boot t80 wake:1 time:7:20 t5 lp t5
+noseq "...and it stays off that morning"                     'ring 000000|ring 7F350A|' boot t80 wake:1 time:7:20 t5 rp t5 time:7:21 t5
+has   "...but comes back the next morning"                   'ring 3F1A05'          boot t80 wake:1 time:7:20 t5 rp t5 time:23:00 t5 time:7:07:30 t5
 echo "ui scenarios: $pass passed, $fail failed"
 [ "$fail" = 0 ]

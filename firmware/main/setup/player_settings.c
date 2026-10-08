@@ -1,5 +1,9 @@
 #include "player_settings.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "ui.h"
 #include "ui_host.h"
 
@@ -23,6 +27,13 @@ void player_settings_to_json(cJSON *o)
     cJSON_AddNumberToObject(o, "rise", host_clock_setting(UI_CLOCK_RISE));
     cJSON_AddNumberToObject(o, "dusk", host_clock_setting(UI_CLOCK_SET));
     cJSON_AddNumberToObject(o, "fade", host_clock_setting(UI_CLOCK_FADE));
+    char rgb[8];
+    snprintf(rgb, sizeof(rgb), "#%06X", (unsigned)host_light_setting(UI_LIGHT_COLOUR) & 0xFFFFFF);
+    cJSON_AddBoolToObject(o, "night", host_light_setting(UI_LIGHT_NIGHT));
+    cJSON_AddStringToObject(o, "night_color", rgb);
+    cJSON_AddNumberToObject(o, "night_bright", host_light_setting(UI_LIGHT_BRIGHT));
+    cJSON_AddBoolToObject(o, "wake", host_light_setting(UI_LIGHT_WAKE));
+    cJSON_AddNumberToObject(o, "wake_hold", host_light_setting(UI_LIGHT_HOLD));
 }
 
 void player_settings_from_json(const cJSON *req)
@@ -49,4 +60,14 @@ void player_settings_from_json(const cJSON *req)
     const int auto_off = num(req, "auto_off", -1);
     if (auto_off >= 0) host_set_auto_off(auto_off);
     host_set_volume_limit(num(req, "vol_limit", 0));  // ignored unless 10-100
+    // The LED ring. Values out of range are ignored by the setters.
+    const cJSON *night = cJSON_GetObjectItem(req, "night"), *wake = cJSON_GetObjectItem(req, "wake");
+    if (cJSON_IsBool(night)) host_set_light_setting(UI_LIGHT_NIGHT, cJSON_IsTrue(night));
+    if (cJSON_IsBool(wake)) host_set_light_setting(UI_LIGHT_WAKE, cJSON_IsTrue(wake));
+    const cJSON *colour = cJSON_GetObjectItem(req, "night_color");
+    if (cJSON_IsString(colour) && colour->valuestring[0] == '#' && strlen(colour->valuestring) == 7) {
+        host_set_light_setting(UI_LIGHT_COLOUR, (int)strtol(colour->valuestring + 1, NULL, 16));
+    }
+    host_set_light_setting(UI_LIGHT_BRIGHT, num(req, "night_bright", 0));
+    host_set_light_setting(UI_LIGHT_HOLD, num(req, "wake_hold", 0));
 }

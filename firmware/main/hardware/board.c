@@ -6,6 +6,7 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "iox.h"
+#include "ring.h"
 #include "pins.h"
 
 static const char *TAG = "board";
@@ -42,8 +43,14 @@ esp_err_t board_init(void)
     return ESP_OK;
 }
 
+i2c_master_bus_handle_t board_i2c_bus(void)
+{
+    return s_i2c;
+}
+
 void board_power_off(void)
 {
+    ring_set(0, 0, 0);  // the LED ring goes dark with the player (GPIO 12 low before any reset)
     iox_set(IOX_AMP_EN, 0);
     iox_set(IOX_VIN_HOLD, 0);
 }

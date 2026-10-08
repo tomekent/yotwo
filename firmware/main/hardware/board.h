@@ -4,11 +4,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
+#include "driver/i2c_master.h"
 
 // I2C, the IO expander (which also latches the power on) and the shared SPI bus.
 // Call first: on battery the player switches off when the power button is released
 // unless the latch has been set.
 esp_err_t board_init(void);
+// The I2C bus (codec, IO expander, accelerometer), for drivers that add a device to it.
+i2c_master_bus_handle_t board_i2c_bus(void);
 // Releases the power latch. On battery this switches the player off; on USB it stays up.
 void board_power_off(void);
 

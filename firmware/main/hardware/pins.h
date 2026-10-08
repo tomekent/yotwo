@@ -7,6 +7,7 @@
 #define PIN_I2C_SCL 27
 #define I2C_ADDR_IOX    0x20
 #define I2C_ADDR_ES8388 0x10
+#define I2C_ADDR_ACCEL  0x18  // LIS2DH12 (the stock firmware reads it here)
 
 // I2S to the ES8388 (the ESP32 is master and supplies MCLK)
 #define PIN_I2S_MCLK 0

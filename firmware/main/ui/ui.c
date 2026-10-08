@@ -23,7 +23,9 @@
 #include "gfx.h"
 #include "player.h"
 #include "offline.h"
+#include "accel.h"
 #include "portal.h"
+#include "ring.h"
 #include "web.h"
 #include <time.h>
 #include "ui_core.h"
@@ -291,6 +293,36 @@ void host_pause(void)
 
 /* Volume. The knob and its display run 0-100; what reaches the amplifier is that share of
    the limit, so with the limit at 80 the top of the scale is 80 % of full output. */
+
+/* The LED ring (hardware/ring.c) and the face-down sensor (hardware/accel.c). */
+
+static int s_light[5] = { 1, 0xFF0000, 50, 0, 10 };  // nightlight on, red (the stock default), 50 %, wake off, 10 min
+static const char *const LIGHT_KEY[5] = { "nlon", "nlrgb", "nlbr", "wake", "wakehold" };
+
+void host_set_ring(unsigned rgb) { ring_set((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF); }
+bool host_face_down(void) { return accel_face_down(); }
+int host_light_setting(ui_light_setting_t which) { return s_light[which]; }
+
+static void save_light(void *arg)
+{
+    nvs_handle_t h;
+    if (nvs_open("ui", NVS_READWRITE, &h) == ESP_OK) {
+        for (int i = 0; i < 5; i++) nvs_set_u32(h, LIGHT_KEY[i], (uint32_t)s_light[i]);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+void host_set_light_setting(ui_light_setting_t which, int value)
+{
+    const bool ok = which == UI_LIGHT_COLOUR ? value >= 0 && value <= 0xFFFFFF
+                  : which == UI_LIGHT_BRIGHT ? value >= 10 && value <= 100
+                  : which == UI_LIGHT_HOLD   ? value >= 5 && value <= 15
+                  : value == 0 || value == 1;
+    if (!ok || value == s_light[which]) return;
+    s_light[which] = value;
+    flash_safe(save_light, NULL);
+}
 
 int host_volume_limit(void) { return s_volume_limit; }
 
@@ -726,6 +758,10 @@ void ui_init(QueueHandle_t events)
         }
         uint8_t limit;
         if (nvs_get_u8(h, "vollimit", &limit) == ESP_OK && limit >= 10 && limit <= 100) s_volume_limit = limit;
+        for (int i = 0; i < 5; i++) {
+            uint32_t v;
+            if (nvs_get_u32(h, LIGHT_KEY[i], &v) == ESP_OK) s_light[i] = (int)v;
+        }
         uint16_t auto_off;
         if (nvs_get_u16(h, "autooff", &auto_off) == ESP_OK) s_auto_off = auto_off;
         size_t name_len = sizeof(s_name);

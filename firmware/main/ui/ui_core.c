@@ -9,7 +9,7 @@
 
 typedef enum {
     M_STATUS, M_SETUP, M_PLAYER, M_CHAPTER, M_MENU, M_GROUPS, M_BOOKS, M_SLEEP,
-    M_SETTINGS, M_LIBS, M_VIEW, M_READ, M_SPEED, M_CARD, M_CARD_MIN, M_EXT, M_CLOCK_SET, M_CLOCK_PICK, M_AUTO_OFF, M_VOL_LIMIT, M_OFF
+    M_SETTINGS, M_LIBS, M_VIEW, M_READ, M_SPEED, M_CARD, M_CARD_MIN, M_EXT, M_CLOCK_SET, M_CLOCK_PICK, M_AUTO_OFF, M_VOL_LIMIT, M_LIGHT_SET, M_LIGHT_PICK, M_OFF
 } screen_t;
 typedef enum {
     OV_NONE, OV_VOLUME, OV_PLAYPAUSE, OV_SLEEP, OV_WORD, OV_MESSAGE, OV_HEART, OV_BATTERY, OV_WIFI
@@ -21,7 +21,7 @@ typedef enum { V_LAST, V_NEW, V_FAV, V_DL, V_TITLE, V_AUTHOR, V_SERIES, V_COUNT 
 enum { MENU_SLEEP = V_COUNT, MENU_SETTINGS, MENU_ITEMS };
 // Settings: which library, cover art or text, readability mode, the card in the slot,
 // and how long a finished sleep card adds when it is put back.
-enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_AUTO_OFF, SET_VOL_LIMIT, SET_SIGN_IN, SET_ITEMS };
+enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_AUTO_OFF, SET_VOL_LIMIT, SET_LIGHT, SET_SIGN_IN, SET_ITEMS };
 
 #define MS(ms)         ((ms) / UI_FRAME_MS)  // a time in ticks
 #define OVERLAY_FRAMES MS(1440)
@@ -31,7 +31,7 @@ enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SE
 #define HEART_FRAMES   MS(1280)  // the favourite animation
 
 static const char *const MENU[MENU_ITEMS] = { "LAST", "NEW", "FAV", "DOWN", "A-Z", "AUTH", "SERI", "BED", "SET" };
-static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "AUTO", "VOL", "SIGN" };
+static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "AUTO", "VOL", "LITE", "SIGN" };
 // Scroll speeds, in pixels a second. MED is what it has always been.
 static const char *const SPEED_LABEL[] = { "MIN", "SLOW", "MED", "FAST" };
 static const int SPEED_PX[] = { 5, 8, 12, 18 };
@@ -57,6 +57,17 @@ static const int AUTO_OFF_MINUTES[] = { 15, 30, 60, 120, 0 };
 // The loudest the player will go, percent of what it can do: 10 to 100 in tens. The volume
 // knob and its display still run the whole way from 0 to 100, spread over that range.
 #define VOL_LIMIT_OPTIONS 10
+// The LED ring: the nightlight when the player lies on its face, and the wake light that
+// rises with the clock's sun. Its settings, under SET > LITE.
+static const char *const LIGHT_ITEMS[] = { "NITE", "COL", "BRT", "WAKE", "HOLD" };
+static const ui_light_setting_t LIGHT_KEYS[] = { UI_LIGHT_NIGHT, UI_LIGHT_COLOUR, UI_LIGHT_BRIGHT, UI_LIGHT_WAKE, UI_LIGHT_HOLD };
+#define LIGHT_ITEM_COUNT 5
+static const char *const COLOUR_LABEL[] = { "RED", "ORNG", "YELW", "GRN", "CYAN", "BLUE", "PURP", "PINK", "WHIT" };
+static const unsigned COLOUR_RGB[] = { 0xFF0000, 0xFF5A00, 0xFFC000, 0x00FF00, 0x00C8FF, 0x0000FF, 0x8C00FF, 0xFF2D90, 0xFFFFFF };
+#define COLOUR_OPTIONS 9
+static const int HOLD_MINUTES[] = { 5, 10, 15 };
+#define HOLD_OPTIONS 3
+#define WAKE_RGB 0xFF6A14  // a warm orange, sunrise
 // Display brightness, percent: by day and by night (it follows the clock's sunrise and
 // sunset), a quarter of that once no knob has been touched for a minute, and barely lit in
 // sleep mode.
@@ -113,6 +124,11 @@ static bool s_low_warned;      // the nearly-empty battery has been shown
 static unsigned s_flat_at;     // when to switch off for an empty battery; 0 = not
 static int s_brightness = -1;  // what the display was last set to
 static bool s_offline;          // no Wi-Fi for a while: only downloaded books are on offer
+static int s_light_item;       // which of LIGHT_ITEMS is being set
+static bool s_face_down;       // lying on its face: display off, nightlight on
+static int s_wake;             // the wake light now, 0 (off) to 256 (full); 0 when not in its time
+static bool s_wake_cancelled;  // a button was pressed during this morning's wake light
+static unsigned s_ring;        // what the ring was last set to (it starts dark)
 static bool s_setup_from_settings;  // setup was opened from SET (so hold can leave it)
 
 // Start-up. The animation plays for at least BOOT_MIN before the books are shown, which
@@ -418,6 +434,7 @@ static unsigned chapter_timeout(void)
 }
 
 static int clock_options(void);
+static int light_options(void);
 static int daylight(int second_of_day);
 
 /* Events */
@@ -450,6 +467,8 @@ static void right_turn(int d)
     case M_EXT:      s_pick = wrapi(s_pick + d, EXTEND_OPTIONS); break;
     case M_AUTO_OFF: s_pick = wrapi(s_pick + d, AUTO_OFF_OPTIONS); break;
     case M_VOL_LIMIT: s_pick = wrapi(s_pick + d, VOL_LIMIT_OPTIONS); break;
+    case M_LIGHT_SET:  s_light_item = wrapi(s_light_item + d, LIGHT_ITEM_COUNT); break;
+    case M_LIGHT_PICK: s_pick = wrapi(s_pick + d, light_options()); break;
     case M_SPEED:    s_pick = wrapi(s_pick + d, SPEED_OPTIONS); break;
     case M_CLOCK_SET:  s_clock_item = wrapi(s_clock_item + d, CLOCK_ITEM_COUNT); break;
     case M_CLOCK_PICK: s_pick = wrapi(s_pick + d, clock_options()); break;
@@ -484,6 +503,27 @@ static void menu_select(void)
         go(M_SLEEP);
     } else {
         go(M_SETTINGS);
+    }
+}
+
+static int light_options(void)
+{
+    switch (s_light_item) {
+    case 1:  return COLOUR_OPTIONS;
+    case 2:  return 10;  // 10 to 100 %
+    case 4:  return HOLD_OPTIONS;
+    default: return 2;   // on / off
+    }
+}
+
+// The value that option `i` of the light setting being chosen stands for.
+static int light_option_value(int i)
+{
+    switch (s_light_item) {
+    case 1:  return (int)COLOUR_RGB[i];
+    case 2:  return (i + 1) * 10;
+    case 4:  return HOLD_MINUTES[i];
+    default: return i == 0;  // ON first
     }
 }
 
@@ -525,6 +565,9 @@ static void settings_select(void)
             s_pick = 0;
             go(M_CARD);
         }
+    } else if (s_setting == SET_LIGHT) {
+        s_light_item = 0;
+        go(M_LIGHT_SET);
     } else if (s_setting == SET_VOL_LIMIT) {
         s_pick = clampi(host_volume_limit() / 10 - 1, 0, VOL_LIMIT_OPTIONS - 1);
         go(M_VOL_LIMIT);
@@ -620,6 +663,17 @@ static void right_press(void)
         host_set_volume_limit((s_pick + 1) * 10);
         go(M_SETTINGS);
         break;
+    case M_LIGHT_SET:
+        s_pick = 0;
+        for (int i = 0; i < light_options(); i++) {
+            if (light_option_value(i) == host_light_setting(LIGHT_KEYS[s_light_item])) s_pick = i;
+        }
+        go(M_LIGHT_PICK);
+        break;
+    case M_LIGHT_PICK:
+        host_set_light_setting(LIGHT_KEYS[s_light_item], light_option_value(s_pick));
+        go(M_LIGHT_SET);
+        break;
     case M_CLOCK_SET:
         s_pick = 0;
         for (int i = 0; i < clock_options(); i++) {
@@ -696,7 +750,9 @@ static void right_hold(void)
     case M_CLOCK_SET:
     case M_AUTO_OFF:
     case M_VOL_LIMIT:
+    case M_LIGHT_SET:
     case M_EXT:      go(M_SETTINGS); break;
+    case M_LIGHT_PICK: go(M_LIGHT_SET); break;
     case M_CLOCK_PICK: go(M_CLOCK_SET); break;
     case M_CARD_MIN: s_pick = 0; go(M_CARD); break;
     default:
@@ -836,6 +892,12 @@ void ui_core_event(const ui_event_t *ev)
         return;
     }
     s_last_touch = s_last_active = s_t;  // any knob, button, card or cable
+    if (s_wake > 0 && (ev->type <= UI_EV_BOTH || ev->type == UI_EV_POWER_PRESS)) {
+        // Awake: any knob or button puts the ring back to its usual self, and does no more.
+        s_wake_cancelled = true;
+        s_wake = 0;
+        return;
+    }
     if (ev->type <= UI_EV_BOTH || ev->type == UI_EV_CARD_IN) {
         // A knob touched (or a card put in) while the clock is up brings the player's own
         // screen back and does nothing more, except the left press, which also plays.
@@ -1008,6 +1070,8 @@ static const icon_t ICON_GLASS   = { { "..###.....", ".#...#....", ".#...#....",
 static const icon_t ICON_CARD    = { { ".########.", ".#......#.", ".#.##...#.", ".#.##...#.", ".#......#.", ".#......#.", ".########." }, 0x40E0D0 };
 static const icon_t ICON_KEY     = { { "..###.....", ".#...#....", ".#...#####", ".#...#..#.", "..###...#." }, 0xFFD166 };
 static const icon_t ICON_POWER   = { { "....#.....", "..#.#.#...", ".#..#..#..", ".#..#..#..", ".#.....#..", "..#...#...", "...###...." }, 0xFF4D4D };
+static const icon_t ICON_LAMP    = { { "...####...", "..#....#..", ".#......#.", ".#......#.", ".#......#.", "..#....#..", "...####..." }, 0xFFB347 };  // the LED ring
+static const icon_t ICON_SWATCH  = { { ".########.", ".########.", ".########.", ".########.", ".########.", ".########.", ".########." }, 0xFFFFFF };
 static const icon_t ICON_LOUD    = { { "....#.....", "..###..#..", "#####.#.#.", "#####.#.#.", "#####.#.#.", "..###..#..", "....#....." }, 0x3DDC84 };
 static const icon_t ICON_PLUS    = { { "....##....", "....##....", "..######..", "..######..", "....##....", "....##...." }, 0x9B8CFF };
 static const icon_t ICON_SPEED   = { { ".#...#....", ".##..##...", ".###.###..", ".########.", ".###.###..", ".##..##...", ".#...#...." }, 0x3DDC84 };
@@ -1472,7 +1536,7 @@ static void draw_screen(void)
         break;
     case M_SETTINGS: {
         static const icon_t *const icons[SET_ITEMS] = { &ICON_LIBRARY, &ICON_EYE, &ICON_GLASS, &ICON_SPEED,
-                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_POWER, &ICON_LOUD, &ICON_KEY };
+                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_POWER, &ICON_LOUD, &ICON_LAMP, &ICON_KEY };
         draw_card(NULL, icons[s_setting], SETTINGS[s_setting], GFX_WHITE, s_setting, SET_ITEMS, false, false);
         break;
     }
@@ -1502,6 +1566,28 @@ static void draw_screen(void)
         draw_card(NULL, ext ? &ICON_PLUS : &ICON_MOON, label, GFX_WHITE, s_pick,
                   ext ? EXTEND_OPTIONS : CARD_MINUTE_OPTIONS,
                   minutes == (ext ? host_sleep_extend() : (s_card == UI_CARD_SLEEP ? host_card_minutes() : 0)), false);
+        break;
+    }
+    case M_LIGHT_SET:
+        draw_card(NULL, &ICON_LAMP, LIGHT_ITEMS[s_light_item], GFX_WHITE, s_light_item, LIGHT_ITEM_COUNT, false, false);
+        break;
+    case M_LIGHT_PICK: {
+        const int v = light_option_value(s_pick);
+        const bool current = v == host_light_setting(LIGHT_KEYS[s_light_item]);
+        char label[16];
+        icon_t icon = ICON_LAMP;
+        if (s_light_item == 1) {
+            snprintf(label, sizeof(label), "%s", COLOUR_LABEL[s_pick]);
+            icon = ICON_SWATCH;
+            icon.rgb = (unsigned)v;
+        } else if (s_light_item == 2) {
+            snprintf(label, sizeof(label), "%d", v);
+        } else if (s_light_item == 4) {
+            snprintf(label, sizeof(label), "%dM", v);
+        } else {
+            snprintf(label, sizeof(label), v ? "ON" : "OFF");
+        }
+        draw_card(NULL, &icon, label, GFX_WHITE, s_pick, light_options(), current, false);
         break;
     }
     case M_VOL_LIMIT: {
@@ -1699,6 +1785,42 @@ void ui_core_tick(void)
         else ui_core_books_changed();
         overlay(OV_WIFI, MS(2500));
     }
+    // The LED ring. In order: the wake light while the sun comes up and for a while after;
+    // a preview while its colour or brightness is being chosen; the nightlight while the
+    // player lies on its face; otherwise off.
+    s_face_down = host_face_down() && s_mode != M_SETUP && s_mode != M_OFF;
+    s_wake = 0;
+    if (host_light_setting(UI_LIGHT_WAKE) && host_time(&now_s)) {
+        const int rise = host_clock_setting(UI_CLOCK_RISE) * 60;
+        const int fade = host_clock_setting(UI_CLOCK_FADE) * 60;
+        const int up = rise + fade, until = up + host_light_setting(UI_LIGHT_HOLD) * 60;
+        if (now_s < rise || now_s >= until) {
+            s_wake_cancelled = false;  // ready for tomorrow
+        } else if (!s_wake_cancelled) {
+            s_wake = now_s >= up || fade <= 0 ? 256 : (now_s - rise) * 256 / fade;
+            if (s_wake < 1) s_wake = 1;
+        }
+    }
+    const int bright = host_light_setting(UI_LIGHT_BRIGHT);
+    unsigned colour = 0;
+    int percent = 0;
+    if (s_wake > 0) {
+        colour = WAKE_RGB;
+        percent = bright * s_wake / 256;
+        if (percent < 1) percent = 1;
+    } else if (s_mode == M_LIGHT_PICK && (s_light_item == 1 || s_light_item == 2)) {
+        colour = s_light_item == 1 ? (unsigned)light_option_value(s_pick) : (unsigned)host_light_setting(UI_LIGHT_COLOUR);
+        percent = s_light_item == 2 ? light_option_value(s_pick) : bright;
+    } else if (s_face_down && host_light_setting(UI_LIGHT_NIGHT)) {
+        colour = (unsigned)host_light_setting(UI_LIGHT_COLOUR);
+        percent = bright;
+    }
+    const unsigned ring = ((((colour >> 16) & 0xFF) * percent / 100) << 16) | ((((colour >> 8) & 0xFF) * percent / 100) << 8) |
+                          ((colour & 0xFF) * percent / 100);
+    if (ring != s_ring) {
+        s_ring = ring;
+        host_set_ring(ring);
+    }
     if (s_mode != M_STATUS) s_booting = false;
     if (s_books_waiting && s_t >= BOOT_MIN) {
         s_books_waiting = false;
@@ -1721,6 +1843,7 @@ void ui_core_tick(void)
     last_state = s_pb.state;
 
     gfx_clear();
+    if (s_face_down) return;  // face-down: the display is dark and the ring does the lighting
     switch (s_overlay) {
     case OV_VOLUME:    draw_volume(); break;
     case OV_PLAYPAUSE: draw_playpause(); break;
