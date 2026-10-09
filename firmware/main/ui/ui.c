@@ -7,6 +7,7 @@
 #include "esp_timer.h"
 #include "esp_lvgl_port.h"
 #include "esp_system.h"
+#include "esp_debug_helpers.h"
 #include "battery.h"
 #include "board.h"
 #include "cards.h"
@@ -718,6 +719,28 @@ int64_t ui_alive_us(void)
     return s_alive_us;
 }
 
+// A UI that has stopped drawing for this long is stuck: say who holds its lock and where
+// every task is, once per stall. (The start-up freeze of 0.2.x: the UI task and the main
+// loop both stopped, without a crash or a watchdog message.) The addresses decode with
+// xtensa-esp32-elf-addr2line -pfiaC -e build/yotwo.elf.
+#define STALL_US (8 * 1000000LL)
+
+static void stall_check(void *arg)
+{
+    static bool told;
+    const int64_t age = esp_timer_get_time() - s_alive_us;
+    if (!s_alive_us || age < STALL_US) {
+        told = false;
+        return;
+    }
+    if (told) return;
+    told = true;
+    TaskHandle_t holder = xSemaphoreGetMutexHolder(s_lock);
+    ESP_LOGE(TAG, "the UI has not drawn for %d s; its lock is held by %s", (int)(age / 1000000),
+             holder ? pcTaskGetName(holder) : "nobody");
+    esp_backtrace_print_all_tasks(20);
+}
+
 static void ui_task(void *arg)
 {
     TickType_t next = xTaskGetTickCount();
@@ -782,6 +805,9 @@ void ui_init(QueueHandle_t events)
     tzset();
     ui_core_init();
     xTaskCreatePinnedToCore(ui_task, "ui", 6144, NULL, 3, NULL, 1);
+    static esp_timer_handle_t stall;
+    const esp_timer_create_args_t args = { .callback = stall_check, .name = "ui stall" };
+    if (esp_timer_create(&args, &stall) == ESP_OK) esp_timer_start_periodic(stall, 2000000);
 }
 
 /* Called by ABSpresso's shared code (which holds the lock) and by main */

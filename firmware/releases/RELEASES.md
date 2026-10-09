@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.3.1-beta | 2026-10-09 | (this commit) | 2000448 B | 58994915b3b2d3633d0750e75a881b3b4d876d1c84570a1d0857b654d3c5890d | Diagnostic: UI stall reporter (lock holder + all-task backtraces after 8 s without a frame) to find the 0.2.x start-up freeze. Still has the freeze. |
 | 0.3.0-beta | 2026-10-09 | (this commit) | 1999392 B | 27bab9161f9f8e8cc0e2becaa654eede19e37d976a6a34e63f479e668b9d3f44 | Safer updates: trial needs web answer + UI alive, own 5-min timer; go back from the web page, both knobs at power-on, or by itself after 3 crashes. OTA-able (boot files unchanged). |
 | 0.2.1-beta | 2026-10-09 | (this commit) | 1992736 B | c4ff2b3563e0fe51181997bdcd121730598677237362725437bf5dc543db25b4 | Wi-Fi transmit power capped at 15 dBm to cut the current spike that was browning out a weak battery at boot. |
 | 0.2.0-beta | 2026-10-08 | (this commit) | 1992352 B | 589f62dedd77b139dd2a093dafa36bab5cd13ade5afebf1365c3cb2246d79589 | LED ring: face-down nightlight (colour, brightness), sunrise wake light (hold 5-15 min, any button cancels); SET > LITE and web page. Untested on the player. |
