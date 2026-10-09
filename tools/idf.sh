@@ -4,7 +4,7 @@
 # interpreter has to be first on PATH when export.sh runs.
 #
 # Usage: tools/idf.sh build | size | menuconfig | ...
-# Flashing is deliberately not wrapped: see docs/README.md ground rules.
+# Flashing is not wrapped here: use tools/flash.sh, only on an explicit go-ahead.
 set -e
 cd "$(dirname "$0")/../firmware"
 export PATH="/opt/homebrew/opt/python@3.14/libexec/bin:/opt/homebrew/opt/python@3.14/bin:$PATH"

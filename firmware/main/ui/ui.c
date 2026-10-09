@@ -711,6 +711,13 @@ bool ui_book_names(const char *item_id, char *title, size_t tlen, char *author, 
 
 /* The UI task */
 
+static volatile int64_t s_alive_us;  // when the task last drew a frame
+
+int64_t ui_alive_us(void)
+{
+    return s_alive_us;
+}
+
 static void ui_task(void *arg)
 {
     TickType_t next = xTaskGetTickCount();
@@ -731,6 +738,7 @@ static void ui_task(void *arg)
         ui_core_tick();
         gfx_flush();
         lvgl_port_unlock();
+        s_alive_us = esp_timer_get_time();
     }
 }
 

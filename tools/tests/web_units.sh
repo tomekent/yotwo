@@ -113,6 +113,9 @@ int main(void)
     ASK("firmware posted bare (no header)", false, .host = H, .data = true, .change = true, .upload = true);
     ASK("firmware to a rebound name", false, .host = "evil.example", .origin = "http://evil.example", .fetch_site = "same-origin", .marked = true, .data = true, .change = true, .upload = true);
     ASK("a neighbour's player name", false, .host = "yotwo.local", .fetch_site = "none", .page = true);
+    ASK("the player asking its own page (trial check)", true, .host = H, .marked = true, .data = true);
+    ASK("going back, from the page", true, .host = H, .origin = O, .fetch_site = "same-origin", .marked = true, .json = true, .data = true, .change = true);
+    ASK("going back, from another site", false, .host = H, .origin = "http://evil.example", .fetch_site = "cross-site", .marked = true, .json = true, .data = true, .change = true);
     printf("web units: %d passed, %d failed\n", pass, fail);
     return fail != 0;
 }
@@ -120,3 +123,13 @@ C
 } > "$OUT.c"
 cc -w -o "$OUT" "$OUT.c"
 "$OUT"
+
+# Every route must fit in the server's table: one too many and it is silently not registered.
+routes=$(sed -n '/^void web_start/,/^}/p' firmware/main/web/web.c | grep -c '{ .uri = ')
+limit=$(sed -n 's/.*cfg.max_uri_handlers = \([0-9]*\);.*/\1/p' firmware/main/web/web.c)
+if [ "$routes" -le "$limit" ]; then
+  echo "web routes: $routes of $limit"
+else
+  echo "FAIL: $routes web routes but room for $limit (cfg.max_uri_handlers)"
+  exit 1
+fi

@@ -13,6 +13,8 @@
 
 // `events` is the queue from input_init() (NULL to run without controls).
 void ui_init(QueueHandle_t events);
+// When the UI task last drew a frame (esp_timer_get_time()), 0 if never: proof it is running.
+int64_t ui_alive_us(void);
 
 // The UI keeps using `books` until the next ui_set_books(); the caller frees the old array after.
 void ui_set_books(const abs_book_t *books, int count);

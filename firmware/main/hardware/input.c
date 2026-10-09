@@ -76,6 +76,12 @@ static void poll_encoder(int i, ui_event_type_t type)
     }
 }
 
+bool input_knobs_held(void)
+{
+    uint16_t in;
+    return iox_read(&in) == ESP_OK && !iox_bit(in, IOX_ENC1_PUSH) && !iox_bit(in, IOX_ENC2_PUSH);
+}
+
 static void input_task(void *arg)
 {
     button_t left = { .pin = LEFT_IS_ENC1 ? IOX_ENC1_PUSH : IOX_ENC2_PUSH };

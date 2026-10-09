@@ -8,6 +8,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "gfx.h"
 #include "nvs_flash.h"
 #include "abs_api.h"
 #include "battery.h"
@@ -91,11 +92,47 @@ static void reserve_iram_heap(void)
     ESP_LOGI(TAG, "reserved %u bytes of IRAM heap", (unsigned)taken);
 }
 
+// Both knobs held while switching on, for three seconds: back to the firmware before this
+// one. For a firmware that was kept but turns out to be no good, when the web page is no
+// use. Before the controls start, so the hold is not also taken as a button press.
+static void offer_going_back(void)
+{
+    if (!input_knobs_held()) return;
+    gfx_clear();
+    gfx_text_centered("BACK", 5, GFX_ORANGE);
+    gfx_flush();
+    int held_ms = 0;
+    while (input_knobs_held() && held_ms < 3000) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+        held_ms += 50;
+    }
+    char why[64];
+    if (held_ms >= 3000) {
+        if (ota_go_back(why, sizeof(why)) == ESP_OK) {
+            gfx_clear();
+            gfx_text_centered("BACK", 5, GFX_GREEN);
+            gfx_flush();
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            esp_restart();
+        }
+        ESP_LOGW(TAG, "both knobs at start-up, but %s", why);
+        gfx_clear();
+        gfx_text_centered("NONE", 5, GFX_RED);
+        gfx_flush();
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+    while (input_knobs_held()) vTaskDelay(pdMS_TO_TICKS(50));
+    gfx_clear();
+    gfx_flush();
+}
+
 void app_main(void)
 {
     reserve_iram_heap();
     // The power latch first: on battery, releasing the button before this runs switches off.
     const esp_err_t board_err = board_init();
+    // Straight after: a firmware that crashes while starting must still be counted.
+    ota_init();
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -113,6 +150,7 @@ void app_main(void)
     ESP_ERROR_CHECK(board_err);
 
     ESP_ERROR_CHECK(display_init());
+    offer_going_back();
     ring_init();
     accel_init(board_i2c_bus());  // carries on without the face-down nightlight if missing
     QueueHandle_t events = NULL;
@@ -145,7 +183,6 @@ void app_main(void)
     esp_netif_sntp_init(&sntp);
     esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_got_ip, NULL);
     web_init();
-    ota_init();
     catalog_init();
 
     if (!config_complete()) {
@@ -160,7 +197,7 @@ void app_main(void)
         // The player's own web page, whenever the home network is there and setup is not.
         // Before the library load below, which can take twenty seconds.
         if (wifi_is_connected() && !portal_active()) web_start();
-        ota_watch(web_running());
+        ota_watch();
         if (!portal_active() && !online && !abs_signed_out() && wifi_is_connected() && now - last_try >= RETRY_US) {
             ui_show_status("SYNC", 0x40E0D0);
             online = catalog_load_network(cached);

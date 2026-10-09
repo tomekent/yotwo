@@ -11,3 +11,5 @@
 
 // Starts polling. Events (ui_event_t) are posted to the returned queue.
 esp_err_t input_init(QueueHandle_t *events);
+// Both knob buttons are down now. Works from board_init() on, before input_init().
+bool input_knobs_held(void);

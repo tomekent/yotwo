@@ -14,6 +14,7 @@
 #include "download.h"
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
+#include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -34,6 +35,7 @@ static const char *TAG = "web";
 
 static httpd_handle_t s_httpd;
 static bool s_mdns;
+static volatile bool s_answered;  // a data request has been answered since start-up
 
 /* ---------- the name on the network ---------- */
 
@@ -202,7 +204,10 @@ static bool admit(httpd_req_t *req, ask_t kind)
     my_ip(ip, sizeof(ip));
     harden(req, kind == ASK_COVER);
     const char *why = refusal(&a, name, ip);
-    if (!why) return true;
+    if (!why) {
+        if (a.data) s_answered = true;
+        return true;
+    }
     ESP_LOGW(TAG, "refused %s: %s (host '%s', origin '%s', site '%s')", req->uri, why, host, origin, site);
     httpd_resp_set_status(req, "403 Forbidden");
     httpd_resp_set_type(req, "text/plain");
@@ -318,6 +323,8 @@ static esp_err_t on_state(httpd_req_t *req)
     cJSON_AddStringToObject(o, "build", build);
     cJSON_AddStringToObject(o, "version", app->version);
     cJSON_AddStringToObject(o, "update", ota_state());
+    char previous[32];
+    if (ota_previous(previous, sizeof(previous))) cJSON_AddStringToObject(o, "previous", previous);
     cJSON_AddNumberToObject(o, "uptime", (double)(esp_timer_get_time() / 1000000));
     cJSON_AddStringToObject(o, "library", library);
     cJSON_AddBoolToObject(o, "signed_out", abs_signed_out());
@@ -762,6 +769,26 @@ static esp_err_t on_update(httpd_req_t *req)
     return sent;
 }
 
+// {"code": "1234"}: back to the firmware in the other slot (on trial), then restart.
+static esp_err_t on_update_back(httpd_req_t *req)
+{
+    if (!admit(req, ASK_CHANGE)) return ESP_OK;
+    cJSON *root = read_json(req);
+    const cJSON *code = cJSON_GetObjectItem(root, "code");
+    const bool ok_code = cJSON_IsString(code) && ota_code_ok(code->valuestring);
+    cJSON_Delete(root);
+    if (!ok_code) return update_reply(req, false, "That is not the code on the player (or it has run out). Ask for a new one.");
+    char why[96];
+    if (ota_go_back(why, sizeof(why)) != ESP_OK) return update_reply(req, false, why);
+    player_stop();
+    ui_show_word("BACK", 5);
+    const esp_err_t sent = update_reply(req, true, NULL);
+    static esp_timer_handle_t timer;
+    const esp_timer_create_args_t args = { .callback = restart_now, .name = "restart" };
+    if (esp_timer_create(&args, &timer) == ESP_OK) esp_timer_start_once(timer, 2000000);
+    return sent;
+}
+
 /* ---------- formatting the SD card ---------- */
 
 // Asks the player to show a code (the same kind as for a firmware update).
@@ -815,7 +842,7 @@ void web_start(void)
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.task_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;  // internal RAM is scarce
     cfg.stack_size = 8192;
-    cfg.max_uri_handlers = 18;
+    cfg.max_uri_handlers = 19;
     cfg.uri_match_fn = httpd_uri_match_wildcard;
     cfg.max_open_sockets = 3;  // sockets are shared with playback, downloads and the rest
     cfg.lru_purge_enable = true;
@@ -839,6 +866,7 @@ void web_start(void)
         { .uri = "/api/cover", .method = HTTP_GET, .handler = on_cover },
         { .uri = "/api/update/code", .method = HTTP_POST, .handler = on_update_code },
         { .uri = "/api/update", .method = HTTP_POST, .handler = on_update },
+        { .uri = "/api/update/back", .method = HTTP_POST, .handler = on_update_back },
         { .uri = "/api/format/code", .method = HTTP_POST, .handler = on_format_code },
         { .uri = "/api/format", .method = HTTP_POST, .handler = on_format },
         { .uri = "/*", .method = HTTP_OPTIONS, .handler = on_preflight },
@@ -853,6 +881,35 @@ void web_start(void)
 bool web_running(void)
 {
     return s_httpd != NULL;
+}
+
+// The player asks its own page for its state, as the page in a browser would: through the
+// network stack, the server's task and the same checks. Throws the answer away.
+static void ask_myself(void)
+{
+    char host[64], name[48];
+    web_hostname(name, sizeof(name));
+    snprintf(host, sizeof(host), "%s.local", name);
+    const esp_http_client_config_t cfg = { .url = "http://127.0.0.1/api/state", .timeout_ms = 5000 };
+    esp_http_client_handle_t c = esp_http_client_init(&cfg);
+    if (!c) return;
+    esp_http_client_set_header(c, "Host", host);
+    esp_http_client_set_header(c, "X-Yotwo", "1");
+    const esp_err_t err = esp_http_client_perform(c);
+    const int status = esp_http_client_get_status_code(c);
+    esp_http_client_cleanup(c);
+    if (err != ESP_OK || status != 200) ESP_LOGW(TAG, "asking my own page: %s, status %d", esp_err_to_name(err), status);
+}
+
+bool web_check(void)
+{
+    static int64_t last;
+    if (s_answered || !s_httpd) return s_answered;
+    const int64_t now = esp_timer_get_time();
+    if (last && now - last < 15 * 1000000LL) return false;
+    last = now;
+    ask_myself();
+    return s_answered;
 }
 
 void web_stop(void)

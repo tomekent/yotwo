@@ -16,6 +16,9 @@ void web_init(void);
 void web_start(void);
 // Whether the page is being served.
 bool web_running(void);
+// Whether the page has answered a request since start-up. If not, and it is running, asks
+// it for the player's state (at most every 15 s; blocks for up to 5 s).
+bool web_check(void);
 // Stops it (the setup page needs port 80).
 void web_stop(void);
 // The player's name has changed: announce the new address.
