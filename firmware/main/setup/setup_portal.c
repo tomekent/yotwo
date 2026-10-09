@@ -6,7 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "abs_api.h"
 #include "cJSON.h"
 #include "config.h"
 #include "esp_heap_caps.h"
@@ -18,17 +17,18 @@
 #include "esp_system.h"
 #include "lwip/sockets.h"
 #include "nvs.h"
-#include "credential.h"
-#include "player_settings.h"
+#include "account.h"
 #include "setup_page.h"
 #include "ui_host.h"
+#include "web.h"
 #include "wifi.h"
 
 // Yotwo's own setup portal, in place of ABSpresso's portal.c (same portal.h interface, and
 // its DNS, scan and save plumbing). The differences: the setup network is open, so a phone
 // that remembers it rejoins without a password; the page instead asks for the four-digit
-// code on the display before it shows or accepts anything; and the page carries this
-// player's settings, not ABSpresso's.
+// code on the display before it shows or accepts anything; and it sets the Wi-Fi alone.
+// The server, the sign-in and the player's settings are on the player's own web page,
+// reached once it is on the home network.
 static const char *TAG = "setup";
 
 #define AP_IP "192.168.4.1"
@@ -183,16 +183,9 @@ static esp_err_t on_other(httpd_req_t *req)
 static esp_err_t on_config(httpd_req_t *req)
 {
     if (!allowed(req)) return ESP_OK;
-    const app_config_t *c = config_get();
-    // Never send stored passwords or tokens back to the browser.
+    // Never send the stored password back to the browser.
     cJSON *o = cJSON_CreateObject();
-    cJSON_AddStringToObject(o, "ssid", c->wifi_ssid);
-    cJSON_AddStringToObject(o, "server", c->server);
-    cJSON_AddStringToObject(o, "username", c->username);
-    cJSON_AddStringToObject(o, "auth", (c->access[0] && !c->refresh[0] && !c->username[0]) ? "apikey" : "password");
-    cJSON_AddBoolToObject(o, "signed_in", c->access[0] != 0);
-    cJSON_AddBoolToObject(o, "remembered", credential_present());
-    player_settings_to_json(o);
+    cJSON_AddStringToObject(o, "ssid", config_get()->wifi_ssid);
     return send_json(req, o);
 }
 
@@ -257,12 +250,6 @@ static const char *str(const cJSON *o, const char *key)
     return cJSON_IsString(v) ? v->valuestring : "";
 }
 
-static int num(const cJSON *o, const char *key, int def)
-{
-    const cJSON *v = cJSON_GetObjectItem(o, key);
-    return cJSON_IsNumber(v) ? v->valueint : def;
-}
-
 static void apply(const cJSON *req)
 {
     app_config_t *c = heap_caps_malloc(sizeof(*c), MALLOC_CAP_SPIRAM);
@@ -285,68 +272,14 @@ static void apply(const cJSON *req)
     }
     strlcpy(c->wifi_ssid, ssid, sizeof(c->wifi_ssid));
     strlcpy(c->wifi_pass, use_pass, sizeof(c->wifi_pass));
-
-    // Server: trimmed, no trailing slash, https:// assumed if no scheme given.
-    char server[128];
-    const char *srv = str(req, "server");
-    if (!srv[0]) {
-        set_status(false, "Enter your Audiobookshelf server address.");
-        goto out;
-    }
-    snprintf(server, sizeof(server), "%s%s", strstr(srv, "://") ? "" : "https://", srv);
-    size_t n = strlen(server);
-    while (n && server[n - 1] == '/') server[--n] = 0;
-
-    // Sign in: username/password, an API key, or keep the current credential.
-    abs_auth_result_t r;
-    const char *mode = str(req, "auth"), *user = str(req, "username"), *pass = str(req, "password");
-    const char *key = str(req, "api_key");
-    if (strcmp(mode, "apikey") == 0 && key[0]) {
-        set_status(true, "Checking the API key...");
-        r = abs_check(server, key);
-        if (r == ABS_AUTH_OK) {
-            strlcpy(c->access, key, sizeof(c->access));
-            c->refresh[0] = c->username[0] = 0;
-            credential_clear();  // a key needs no password
-        }
-    } else if (strcmp(mode, "password") == 0 && user[0] && pass[0]) {
-        set_status(true, "Signing in as %s...", user);
-        r = abs_login(server, user, pass, c->access, sizeof(c->access), c->refresh, sizeof(c->refresh));
-        if (r == ABS_AUTH_OK) {
-            strlcpy(c->username, user, sizeof(c->username));
-            // Kept (encrypted) so the player can sign in again when the server ends its session.
-            if (cJSON_IsFalse(cJSON_GetObjectItem(req, "remember"))) credential_clear();
-            else credential_save(pass);
-        }
-    } else if (c->access[0] && strcmp(server, c->server) == 0) {
-        set_status(true, "Checking the saved sign-in...");
-        r = abs_check(server, c->access);
-        // An expired access token with a refresh token is fine: it renews on first use.
-        // Not so once the server has refused the renewal too.
-        if (r == ABS_AUTH_REJECTED && c->refresh[0] && !abs_signed_out()) r = ABS_AUTH_OK;
-        if (r == ABS_AUTH_REJECTED) {
-            set_status(false, "The saved sign-in is no longer accepted. Enter an API key, or your username and password.");
-            goto out;
-        }
-    } else {
-        set_status(false, strcmp(mode, "apikey") == 0 ? "Enter an API key." : "Enter your username and password.");
-        goto out;
-    }
-    if (r != ABS_AUTH_OK) {
-        set_status(false, r == ABS_AUTH_UNREACHABLE ? "Couldn't reach %s. Check the address."
-                          : r == ABS_AUTH_REJECTED  ? "The server didn't accept those details."
-                                                    : "Unexpected reply from %s.",
-                   server);
-        goto out;
-    }
-    strlcpy(c->server, server, sizeof(c->server));
-
-    // This player's own settings. A value the page did not send is left as it is.
-    player_settings_from_json(req);
-
     config_save(c);
-    set_status(true, "All set. Restarting...");
-    vTaskDelay(pdMS_TO_TICKS(2500));  // let the page show it
+
+    // Everything else (the server, the sign-in, the player's settings) is on its web page.
+    char host[48];
+    web_hostname(host, sizeof(host));
+    set_status(true, "Connected. Restarting... Then, on %s, open http://%s.local%s", ssid, host,
+               account_present() ? "" : " to sign in to your Audiobookshelf server");
+    vTaskDelay(pdMS_TO_TICKS(6000));  // long enough to read the address
     esp_restart();
 out:
     free(c);

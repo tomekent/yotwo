@@ -21,7 +21,7 @@ typedef enum { V_LAST, V_NEW, V_FAV, V_DL, V_TITLE, V_AUTHOR, V_SERIES, V_COUNT 
 enum { MENU_SLEEP = V_COUNT, MENU_SETTINGS, MENU_ITEMS };
 // Settings: which library, cover art or text, readability mode, the card in the slot,
 // and how long a finished sleep card adds when it is put back.
-enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_AUTO_OFF, SET_VOL_LIMIT, SET_LIGHT, SET_SIGN_IN, SET_ITEMS };
+enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_AUTO_OFF, SET_VOL_LIMIT, SET_LIGHT, SET_WIFI, SET_ITEMS };
 
 #define MS(ms)         ((ms) / UI_FRAME_MS)  // a time in ticks
 #define OVERLAY_FRAMES MS(1440)
@@ -31,7 +31,7 @@ enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SE
 #define HEART_FRAMES   MS(1280)  // the favourite animation
 
 static const char *const MENU[MENU_ITEMS] = { "LAST", "NEW", "FAV", "DOWN", "A-Z", "AUTH", "SERI", "BED", "SET" };
-static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "AUTO", "VOL", "LITE", "SIGN" };
+static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "AUTO", "VOL", "LITE", "WIFI" };
 // Scroll speeds, in pixels a second. MED is what it has always been.
 static const char *const SPEED_LABEL[] = { "MIN", "SLOW", "MED", "FAST" };
 static const int SPEED_PX[] = { 5, 8, 12, 18 };
@@ -580,7 +580,7 @@ static void settings_select(void)
     } else if (s_setting == SET_CLOCK) {
         s_clock_item = 0;
         go(M_CLOCK_SET);
-    } else if (s_setting == SET_SIGN_IN) {
+    } else if (s_setting == SET_WIFI) {
         // Wi-Fi, server and sign-in from a phone: the player's own network, password here.
         set_text(host_setup_start());
         s_setup_from_settings = true;
@@ -1068,7 +1068,7 @@ static const icon_t ICON_DOWN    = { { "....##....", "....##....", "....##....",
 static const icon_t ICON_GEAR    = { { "...##.....", ".#.##.#...", "..####....", "###..###..", "###..###..", "..####....", ".#.##.#...", "...##....." }, 0xBDBDBD };
 static const icon_t ICON_GLASS   = { { "..###.....", ".#...#....", ".#...#....", ".#...#....", "..###.....", ".....#....", "......#..." }, 0xFFD166 };
 static const icon_t ICON_CARD    = { { ".########.", ".#......#.", ".#.##...#.", ".#.##...#.", ".#......#.", ".#......#.", ".########." }, 0x40E0D0 };
-static const icon_t ICON_KEY     = { { "..###.....", ".#...#....", ".#...#####", ".#...#..#.", "..###...#." }, 0xFFD166 };
+static const icon_t ICON_WIFI    = { { "..######..", ".#......#.", "...####...", "..#....#..", "....##....", "....##...." }, 0x8FD3FF };
 static const icon_t ICON_POWER   = { { "....#.....", "..#.#.#...", ".#..#..#..", ".#..#..#..", ".#.....#..", "..#...#...", "...###...." }, 0xFF4D4D };
 static const icon_t ICON_LAMP    = { { "...####...", "..#....#..", ".#......#.", ".#......#.", ".#......#.", "..#....#..", "...####..." }, 0xFFB347 };  // the LED ring
 static const icon_t ICON_SWATCH  = { { ".########.", ".########.", ".########.", ".########.", ".########.", ".########.", ".########." }, 0xFFFFFF };
@@ -1536,7 +1536,7 @@ static void draw_screen(void)
         break;
     case M_SETTINGS: {
         static const icon_t *const icons[SET_ITEMS] = { &ICON_LIBRARY, &ICON_EYE, &ICON_GLASS, &ICON_SPEED,
-                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_POWER, &ICON_LOUD, &ICON_LAMP, &ICON_KEY };
+                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_POWER, &ICON_LOUD, &ICON_LAMP, &ICON_WIFI };
         draw_card(NULL, icons[s_setting], SETTINGS[s_setting], GFX_WHITE, s_setting, SET_ITEMS, false, false);
         break;
     }

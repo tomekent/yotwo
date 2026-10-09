@@ -68,7 +68,7 @@ has   "SET > AUTO sets the switch-off time"                  'auto-off 120'     
 has   "SET > CLK > RISE sets the sunrise"                    'clock setting 1 = 435' boot t80 rh r- rp r- r- r- r- r- rp r+ rp r+ rp
 has   "SET > VOL sets the volume limit (default 80, in tens)" 'volume limit 90'    boot t80 rh r- rp r- r- r- rp r+ rp
 has   "...and shows the current limit first"                 'W\.W\.WWW|WWW\.WWW' boot t80 rh r- rp r- r- r- rp show
-has   "SET > SIGN starts setup, and a hold leaves it"        'setup stopped'      boot t80 rh r- rp r- rp rh
+has   "SET > WIFI starts setup, and a hold leaves it"        'setup stopped'      boot t80 rh r- rp r- rp rh
 has   "a hold on the start-up screen opens setup"            'setup started'      status:WIFI rh
 hasnt "a hold elsewhere does not"                            'setup started'      boot t80 rh rh rh
 has   "SET > LIB switches library"                           'library -> Grown-ups' boot t80 rh r- rp rp r+ rp

@@ -8,6 +8,7 @@
 #include <time.h>
 #include "battery.h"
 #include "abs_api.h"
+#include "account.h"
 #include "cJSON.h"
 #include "cards.h"
 #include "cover16.h"
@@ -250,6 +251,7 @@ static cJSON *read_json(httpd_req_t *req)
         body[got] = 0;
         root = cJSON_Parse(body);
     }
+    if (body) memset(body, 0, req->content_len + 1);  // it may have carried a password
     free(body);
     return root;
 }
@@ -789,6 +791,68 @@ static esp_err_t on_update_back(httpd_req_t *req)
     return sent;
 }
 
+/* ---------- the server and sign-in ---------- */
+
+static esp_err_t on_account(httpd_req_t *req)
+{
+    if (!admit(req, ASK_DATA)) return ESP_OK;
+    cJSON *o = cJSON_CreateObject();
+    account_to_json(o);
+    return send_json(req, o);
+}
+
+// Asks the player to show a code (the same kind as for a firmware update).
+static esp_err_t on_account_code(httpd_req_t *req)
+{
+    if (!admit(req, ASK_CHANGE)) return ESP_OK;
+    ota_new_code();
+    return send_json(req, cJSON_CreateObject());
+}
+
+static const char *jstr(const cJSON *o, const char *key)
+{
+    const cJSON *v = cJSON_GetObjectItem(o, key);
+    return cJSON_IsString(v) ? v->valuestring : "";
+}
+
+// {"code", "server", "auth", "username", "password", "api_key", "remember"}: checked with the
+// server (seconds), saved, and the player restarts to load the library from it.
+static esp_err_t on_account_post(httpd_req_t *req)
+{
+    if (!admit(req, ASK_CHANGE)) return ESP_OK;
+    cJSON *root = read_json(req);
+    cJSON *o = cJSON_CreateObject();
+    const cJSON *code = cJSON_GetObjectItem(root, "code");
+    if (!cJSON_IsString(code) || !ota_code_ok(code->valuestring)) {
+        cJSON_AddBoolToObject(o, "ok", false);
+        cJSON_AddStringToObject(o, "error", "That is not the code on the player (or it has run out). Ask for a new one.");
+    } else {
+        const account_request_t a = {
+            .server = jstr(root, "server"),
+            .auth = jstr(root, "auth"),
+            .username = jstr(root, "username"),
+            .password = jstr(root, "password"),
+            .api_key = jstr(root, "api_key"),
+            .remember = !cJSON_IsFalse(cJSON_GetObjectItem(root, "remember")),
+        };
+        char msg[200];
+        ui_show_word("SIGN", 30);
+        const bool ok = account_apply(&a, msg, sizeof(msg));
+        ui_show_word(ok ? "DONE" : "FAIL", 5);
+        cJSON_AddBoolToObject(o, "ok", ok);
+        cJSON_AddStringToObject(o, ok ? "message" : "error", msg);
+        if (ok) {
+            static esp_timer_handle_t timer;
+            const esp_timer_create_args_t args = { .callback = restart_now, .name = "restart" };
+            if (esp_timer_create(&args, &timer) == ESP_OK) esp_timer_start_once(timer, 2000000);
+        }
+    }
+    cJSON *pw = cJSON_GetObjectItem(root, "password");
+    if (cJSON_IsString(pw)) memset(pw->valuestring, 0, strlen(pw->valuestring));
+    cJSON_Delete(root);
+    return send_json(req, o);
+}
+
 /* ---------- formatting the SD card ---------- */
 
 // Asks the player to show a code (the same kind as for a firmware update).
@@ -842,7 +906,7 @@ void web_start(void)
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
     cfg.task_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;  // internal RAM is scarce
     cfg.stack_size = 8192;
-    cfg.max_uri_handlers = 19;
+    cfg.max_uri_handlers = 22;
     cfg.uri_match_fn = httpd_uri_match_wildcard;
     cfg.max_open_sockets = 3;  // sockets are shared with playback, downloads and the rest
     cfg.lru_purge_enable = true;
@@ -867,6 +931,9 @@ void web_start(void)
         { .uri = "/api/update/code", .method = HTTP_POST, .handler = on_update_code },
         { .uri = "/api/update", .method = HTTP_POST, .handler = on_update },
         { .uri = "/api/update/back", .method = HTTP_POST, .handler = on_update_back },
+        { .uri = "/api/account", .method = HTTP_GET, .handler = on_account },
+        { .uri = "/api/account/code", .method = HTTP_POST, .handler = on_account_code },
+        { .uri = "/api/account", .method = HTTP_POST, .handler = on_account_post },
         { .uri = "/api/format/code", .method = HTTP_POST, .handler = on_format_code },
         { .uri = "/api/format", .method = HTTP_POST, .handler = on_format },
         { .uri = "/*", .method = HTTP_OPTIONS, .handler = on_preflight },

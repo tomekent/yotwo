@@ -39,12 +39,28 @@ def check(label, header, var, read, given, save_rx, complete=True):
     for f in fails: print(f'FAIL ({label}):', f)
     print(f"{label}: {len(html)} bytes, {len(ids)} elements, {len(sent)} fields sent; {len(fails)} failed")
     total += len(fails)
-# The setup page: Wi-Fi, server and sign-in (setup_portal.c) plus the shared settings.
+# The setup page: the Wi-Fi alone (setup_portal.c).
 portal_cfg = portal.split('static esp_err_t on_scan')[0].split('static esp_err_t on_config')[1]
 check('setup page', 'firmware/main/setup/setup_page.h', 'SETUP_PAGE',
       keys(READ, portal) | settings_read, keys(GIVE, portal_cfg) | settings_given, r"const b=\{(.*?)\};", complete=False)
 # The player's web page: the shared settings only.
 check('web page', 'firmware/main/web/web_page.h', 'WEB_PAGE', settings_read, settings_given, r"const b=\{(.*?)\};")
+# The web page's server and sign-in card: what it sends against what web.c reads, and what
+# it shows against what account.c gives.
+src = open('firmware/main/web/web_page.h').read()
+js = re.search(r'<script>(.*)</script>', ''.join(re.findall(r'^"((?:[^"\\]|\\.)*)"', src, re.M)).encode().decode('unicode_escape'), re.S).group(1)
+acct = open('firmware/main/setup/account.c').read()
+handler = web.split('static esp_err_t on_account_post')[1].split('\n}\n')[0]
+read = set(re.findall(r'jstr\(root, "(\w+)"\)', handler)) | set(re.findall(r'cJSON_GetObjectItem\(root, "(\w+)"\)', handler))
+sent = set(re.findall(r'(?:^|,)(\w+):', re.search(r"post\('/api/account',\{(.*?)\}\)", js, re.S).group(1)))
+shown = set(re.findall(r'\ba\.(\w+)', js.split('function account(')[1].split("$('acsave')")[0]))
+given = set(re.findall(r'cJSON_Add\w+ToObject\(o, "(\w+)"', acct))
+fails = [f"sign-in card sends '{f}' but web.c does not read it" for f in sorted(sent - read)]
+fails += [f"web.c reads '{f}' but the sign-in card does not send it" for f in sorted(read - sent)]
+fails += [f"sign-in card shows 'a.{f}' but account.c does not give it" for f in sorted(shown - given)]
+for f in fails: print('FAIL (sign-in card):', f)
+print(f"sign-in card: {len(sent)} fields sent, {len(shown)} shown; {len(fails)} failed")
+total += len(fails)
 if not shutil.which('node'): print('(node not found: script syntax not checked)')
 sys.exit(1 if total else 0)
 PY

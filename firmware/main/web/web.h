@@ -1,12 +1,12 @@
 #pragma once
 // The player's own web page on the home network: http://<name>.local (toms-yotwo.local for
 // a player named "Tom's Yotwo"). What is playing, the battery and the network; every setting
-// but Wi-Fi and the sign-in (those stay with SET > SIGN, which asks for the code on the
-// display); the copies kept on the SD card, with their progress and a way to remove them;
+// but Wi-Fi (that stays with SET > WIFI); the server and sign-in (confirmed with a code on
+// the display); the copies kept on the SD card, with their progress and a way to remove them;
 // and, for finding faults, the SD card's files to look at.
 //
-// There is no password: anyone on the home network can open it. Nothing it shows or changes
-// includes the Wi-Fi password or the server sign-in.
+// There is no password: anyone on the home network can open it. Nothing it shows includes
+// a password, key or token, and changing the sign-in needs the code on the display.
 #include <stdbool.h>
 #include <stddef.h>
 

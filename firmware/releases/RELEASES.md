@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.4.0-beta | 2026-10-09 | (this commit) | 1998656 B | 39ec6bbc22fa1250e6f4e0a49cdd6baeeb8ca1a89b72c0d5acb665f33af811d3 | Server and sign-in on the web page (code-confirmed); setup portal is Wi-Fi only; SET > SIGN renamed WIFI. OTA-able. |
 | 0.3.3-beta | 2026-10-09 | (this commit) | 2000688 B | 0cf84fa195da94ed6bdfffb0aab405f21c9467ef122ddf7428ad59acf7e81a8a | Fix the start-up freeze and speckled frames: display.c serialises its users (main task's power_init brightness raced the UI's frames). OTA-able. |
 | 0.3.2-beta | 2026-10-09 | (this commit) | 2000608 B | 3c09a0759a79b67ea415264a768ce8d562c4d650c2045ba682eb286c424a406c | Accelerometer task stack 2560 -> 4096 (logs its use). Did NOT fix the start-up freeze (wrong cause; failed its trial). |
 | 0.3.1-beta | 2026-10-09 | (this commit) | 2000448 B | 58994915b3b2d3633d0750e75a881b3b4d876d1c84570a1d0857b654d3c5890d | Diagnostic: UI stall reporter (lock holder + all-task backtraces after 8 s without a frame) to find the 0.2.x start-up freeze. Still has the freeze. |

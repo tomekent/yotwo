@@ -11,6 +11,7 @@
 #include "gfx.h"
 #include "nvs_flash.h"
 #include "abs_api.h"
+#include "account.h"
 #include "battery.h"
 #include "accel.h"
 #include "board.h"
@@ -185,7 +186,7 @@ void app_main(void)
     web_init();
     catalog_init();
 
-    if (!config_complete()) {
+    if (!config_get()->wifi_ssid[0]) {
         run_setup();  // first run, or settings cleared; saving restarts the device
     }
     bool cached = catalog_load_cached();
@@ -198,7 +199,18 @@ void app_main(void)
         // Before the library load below, which can take twenty seconds.
         if (wifi_is_connected() && !portal_active()) web_start();
         ota_watch();
-        if (!portal_active() && !online && !abs_signed_out() && wifi_is_connected() && now - last_try >= RETRY_US) {
+        // No server or sign-in yet (they are set on the web page, not in setup): say where.
+        static bool told_web;
+        if (!account_present() && wifi_is_connected() && web_running() && !told_web) {
+            told_web = true;
+            char host[48], msg[96];
+            web_hostname(host, sizeof(host));
+            snprintf(msg, sizeof(msg), "SIGN IN AT %s.LOCAL", host);
+            ESP_LOGW(TAG, "no server or sign-in yet: open http://%s.local", host);
+            ui_show_message_locked(msg);
+        }
+        if (!portal_active() && !online && account_present() && !abs_signed_out() && wifi_is_connected() &&
+            now - last_try >= RETRY_US) {
             ui_show_status("SYNC", 0x40E0D0);
             online = catalog_load_network(cached);
             last_try = now;
@@ -254,7 +266,10 @@ void app_main(void)
         if (abs_signed_out() && !told) {
             told = true;
             ESP_LOGW(TAG, "signed out by the server");
-            ui_show_message_locked("SIGNED OUT - SET, SIGN TO SIGN IN AGAIN");
+            char host[48], msg[96];
+            web_hostname(host, sizeof(host));
+            snprintf(msg, sizeof(msg), "SIGNED OUT - SIGN IN AGAIN AT %s.LOCAL", host);
+            ui_show_message_locked(msg);
         }
         vTaskDelay(pdMS_TO_TICKS(200));
     }
