@@ -111,16 +111,20 @@ const char *host_setup_start(void)
 {
     static char pass[16];
     char ssid[33];
-    web_stop();  // the setup page takes over port 80; the main loop restarts ours afterwards
-    portal_start();
+    portal_start();  // takes port 80 from our page; the main loop restarts it afterwards
     portal_network(ssid, sizeof(ssid), pass, sizeof(pass));
     ESP_LOGI(TAG, "setup network '%s' (open), code %s", ssid, pass);
     return pass;
 }
 
-void host_setup_stop(void)
+bool host_setup_stop(void)
 {
+    char msg[8];
+    bool saving = false;
+    portal_status(msg, sizeof(msg), &saving);
+    if (saving) return false;  // a phone is saving the Wi-Fi: let it finish
     portal_stop();
+    return true;
 }
 
 int host_scroll_speed(void) { return s_scroll_speed; }

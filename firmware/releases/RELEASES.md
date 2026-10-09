@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.5.2-beta | 2026-10-09 | (this commit) | 2002080 B | 362141a9b8fb99994f51abcbc24af5681ba642bc7725a350767f8ad07254fc78 | Any button leaves setup (SET > WIFI); fix a race that could stop the setup page's server starting. OTA-able. |
 | 0.5.1-beta | 2026-10-09 | (this commit) | 2001904 B | 5043ba552df51c2aafcb5770507b19bf247a061c2a6a817117460b420091612b | Downloads page names and covers for favourites in other libraries (looked up on the server, cached on the SD card). OTA-able. |
 | 0.5.0-beta | 2026-10-09 | (this commit) | 2000048 B | 04d36762510cf93974381a7f6d21cf4ffb63356f3627f4d83ad686f6131bd19b | Day and night display brightness settings (SET > BRT, web page); fix: removing a sleep card restores the brightness. OTA-able. |
 | 0.4.0-beta | 2026-10-09 | (this commit) | 1998656 B | 39ec6bbc22fa1250e6f4e0a49cdd6baeeb8ca1a89b72c0d5acb665f33af811d3 | Server and sign-in on the web page (code-confirmed); setup portal is Wi-Fi only; SET > SIGN renamed WIFI. OTA-able. |

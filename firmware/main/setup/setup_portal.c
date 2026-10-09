@@ -319,9 +319,14 @@ void portal_start(void)
     s_token[0] = 0;
     s_wrong = 0;
     s_locked_until = 0;
+    // Taken at once, before port 80 is free: the main loop restarts the player's own web
+    // page whenever setup is not active, and could otherwise take the port back in between.
+    s_active = true;
+    web_stop();
     // The setup task scans for networks first, then brings the access point up (a scan takes
-    // seconds, so keep it off the caller, which holds the UI lock).
-    set_status(true, "Starting the setup network...");
+    // seconds, so keep it off the caller, which holds the UI lock). Not "busy": that means a
+    // save is under way, which a button press must not cut short.
+    set_status(false, "Starting the setup network...");
     s_scan_count = -1;
     s_bring_up = true;
     if (!s_apply_task) {
@@ -342,9 +347,12 @@ void portal_start(void)
     // at the default of 7 they used up every socket there is, and signing in then failed
     // with "Failed to create socket" until some had closed.
     cfg.max_open_sockets = 4;
-    if (httpd_start(&s_httpd, &cfg) != ESP_OK) {
+    // The player's own server may take a moment to let go of the port.
+    esp_err_t err = ESP_FAIL;
+    for (int i = 0; i < 10 && (err = httpd_start(&s_httpd, &cfg)) != ESP_OK; i++) vTaskDelay(pdMS_TO_TICKS(100));
+    if (err != ESP_OK) {
         ESP_LOGE(TAG, "web server failed to start");
-        return;
+        return;  // (left active, so the player's page stays off: leaving setup puts it back)
     }
     const httpd_uri_t uris[] = {
         {.uri = "/", .method = HTTP_GET, .handler = on_page},
@@ -364,7 +372,7 @@ void portal_start(void)
 void portal_stop(void)
 {
     if (!s_active) return;
-    httpd_stop(s_httpd);
+    if (s_httpd) httpd_stop(s_httpd);  // (not there if it failed to start)
     s_httpd = NULL;
     s_dns_stop = true;
     wifi_stop_ap();

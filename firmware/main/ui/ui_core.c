@@ -904,10 +904,16 @@ void ui_core_event(const ui_event_t *ev)
         host_power_off();
         return;
     }
-    if (s_mode == M_SETUP && s_setup_from_settings && ev->type == UI_EV_R_HOLD) {
-        host_setup_stop();
-        s_setup_from_settings = false;
-        go(M_SETTINGS);
+    // Setup opened from SET (or a stuck start-up) is left by any button: either knob pressed
+    // or held, both, or the power button. Not by turning a knob. (Setup at first run, with no
+    // Wi-Fi saved, cannot be left: there is nothing to go back to.)
+    if (s_mode == M_SETUP && s_setup_from_settings &&
+        (ev->type == UI_EV_L_PRESS || ev->type == UI_EV_L_HOLD || ev->type == UI_EV_R_PRESS ||
+         ev->type == UI_EV_R_HOLD || ev->type == UI_EV_BOTH || ev->type == UI_EV_POWER_PRESS)) {
+        if (host_setup_stop()) {
+            s_setup_from_settings = false;
+            go(M_SETTINGS);
+        }
         return;
     }
     s_last_touch = s_last_active = s_t;  // any knob, button, card or cable

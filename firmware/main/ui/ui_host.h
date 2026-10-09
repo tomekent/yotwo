@@ -136,7 +136,8 @@ void host_battery(ui_battery_t *out);
 // Setup (Wi-Fi, server and sign-in) from a phone, started from the settings. Starting it
 // returns the setup page's 4-digit code to show; saving restarts the player.
 const char *host_setup_start(void);
-void host_setup_stop(void);
+// Leaves setup, unless a phone is in the middle of saving (false).
+bool host_setup_stop(void);
 
 // The clock. host_time() gives the local time as seconds since midnight, and false until
 // the time is known (it comes from the network).

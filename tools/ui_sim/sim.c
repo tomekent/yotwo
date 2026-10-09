@@ -115,7 +115,7 @@ int host_sleep_extend(void) { return s_extend; }
 void host_set_sleep_extend(int m) { s_extend = m; printf("  [host] sleep extension %d min\n", m); }
 static ui_battery_t s_bat = { true, 66, false };
 const char *host_setup_start(void) { printf("  [host] setup started\n"); return "4821"; }
-void host_setup_stop(void) { printf("  [host] setup stopped\n"); }
+bool host_setup_stop(void) { printf("  [host] setup stopped\n"); return true; }
 void host_battery(ui_battery_t *out) { *out = s_bat; }
 bool host_on_battery(void) { return !s_bat.plugged; }
 int host_battery_alarm(void) { return s_bat.plugged ? 0 : s_bat.percent <= 2 ? 2 : s_bat.percent <= 10 ? 1 : 0; }
