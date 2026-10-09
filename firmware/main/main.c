@@ -24,6 +24,7 @@
 #include "download.h"
 #include "favourites.h"
 #include "input.h"
+#include "names.h"
 #include "nfc.h"
 #include "player.h"
 #include "esp_event.h"
@@ -166,6 +167,7 @@ void app_main(void)
     ESP_ERROR_CHECK(board_audio_init());
     storage_init();
     cards_init();
+    names_init();
     battery_init();
     power_init();
     abs_api_init();

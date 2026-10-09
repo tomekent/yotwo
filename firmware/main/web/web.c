@@ -23,6 +23,7 @@
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "mdns.h"
+#include "names.h"
 #include "nfc.h"
 #include "offline.h"
 #include "ota.h"
@@ -438,6 +439,7 @@ static esp_err_t send_downloads(httpd_req_t *req)
     }
     const int n_wanted = offline_wanted(wanted, MAX);
     const int n_have = download_list(have, 64);
+    uint8_t *cover = heap_caps_malloc(COVER16_BYTES, MALLOC_CAP_SPIRAM);
     cJSON *arr = cJSON_CreateArray();
     // First what is on the card (or on its way), then what is wanted and has nothing yet.
     for (int pass = 0; pass < 2; pass++) {
@@ -449,8 +451,12 @@ static esp_err_t send_downloads(httpd_req_t *req)
             if (listed) continue;
             for (int k = 0; k < n_wanted && !is_wanted; k++) is_wanted = strcmp(wanted[k], id) == 0;
             char title[128] = "", author[96] = "", path[96];
-            if (!ui_book_names(id, title, sizeof(title), author, sizeof(author))) {
-                cards_names(id, title, sizeof(title), author, sizeof(author));
+            // The loaded library, a card, or else (another library's favourite) the names
+            // looked up on the server, which also fetches its cover for next time.
+            if (!ui_book_names(id, title, sizeof(title), author, sizeof(author)) &&
+                !cards_names(id, title, sizeof(title), author, sizeof(author))) {
+                names_get(id, title, sizeof(title), author, sizeof(author));
+                if (cover) cover16_get(id, cover);
             }
             cJSON *o = cJSON_CreateObject();
             cJSON_AddStringToObject(o, "id", id);
@@ -468,6 +474,7 @@ static esp_err_t send_downloads(httpd_req_t *req)
     }
     free(wanted);
     free(have);
+    free(cover);
     return send_json(req, arr);
 }
 

@@ -15,6 +15,7 @@
 #include "esp_timer.h"
 #include "favourites.h"
 #include "iox.h"
+#include "names.h"
 #include "pins.h"
 #include "player.h"
 #include "portal.h"
@@ -216,6 +217,7 @@ static void offline_task(void *arg)
         if (dropped) save_skips();
         xSemaphoreGive(s_lock);
         first = false;
+        names_work();  // a name for the web page's downloads list, if one is waiting
 
         player_status_t st;
         player_get_status(&st);
@@ -272,5 +274,6 @@ void offline_init(void)
     download_set_paused(true);  // until the task has looked at the conditions
     s_lock = xSemaphoreCreateMutex();
     load_skips();
-    xTaskCreatePinnedToCoreWithCaps(offline_task, "offline", 4096, NULL, 1, NULL, 1, MALLOC_CAP_SPIRAM);
+    // 8 KB: it also looks up names on the server (names_work()), and a TLS call needs room.
+    xTaskCreatePinnedToCoreWithCaps(offline_task, "offline", 8192, NULL, 1, NULL, 1, MALLOC_CAP_SPIRAM);
 }

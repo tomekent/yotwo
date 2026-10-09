@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.5.1-beta | 2026-10-09 | (this commit) | 2001904 B | 5043ba552df51c2aafcb5770507b19bf247a061c2a6a817117460b420091612b | Downloads page names and covers for favourites in other libraries (looked up on the server, cached on the SD card). OTA-able. |
 | 0.5.0-beta | 2026-10-09 | (this commit) | 2000048 B | 04d36762510cf93974381a7f6d21cf4ffb63356f3627f4d83ad686f6131bd19b | Day and night display brightness settings (SET > BRT, web page); fix: removing a sleep card restores the brightness. OTA-able. |
 | 0.4.0-beta | 2026-10-09 | (this commit) | 1998656 B | 39ec6bbc22fa1250e6f4e0a49cdd6baeeb8ca1a89b72c0d5acb665f33af811d3 | Server and sign-in on the web page (code-confirmed); setup portal is Wi-Fi only; SET > SIGN renamed WIFI. OTA-able. |
 | 0.3.3-beta | 2026-10-09 | (this commit) | 2000688 B | 0cf84fa195da94ed6bdfffb0aab405f21c9467ef122ddf7428ad59acf7e81a8a | Fix the start-up freeze and speckled frames: display.c serialises its users (main task's power_init brightness raced the UI's frames). OTA-able. |
