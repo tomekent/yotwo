@@ -24,7 +24,8 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
-| 0.3.2-beta | 2026-10-09 | (this commit) | 2000608 B | 3c09a0759a79b67ea415264a768ce8d562c4d650c2045ba682eb286c424a406c | Fix the 0.2.0-0.3.1 start-up freeze: accelerometer task stack 2560 -> 4096 (logs its use). OTA-able. |
+| 0.3.3-beta | 2026-10-09 | (this commit) | 2000688 B | 0cf84fa195da94ed6bdfffb0aab405f21c9467ef122ddf7428ad59acf7e81a8a | Fix the start-up freeze and speckled frames: display.c serialises its users (main task's power_init brightness raced the UI's frames). OTA-able. |
+| 0.3.2-beta | 2026-10-09 | (this commit) | 2000608 B | 3c09a0759a79b67ea415264a768ce8d562c4d650c2045ba682eb286c424a406c | Accelerometer task stack 2560 -> 4096 (logs its use). Did NOT fix the start-up freeze (wrong cause; failed its trial). |
 | 0.3.1-beta | 2026-10-09 | (this commit) | 2000448 B | 58994915b3b2d3633d0750e75a881b3b4d876d1c84570a1d0857b654d3c5890d | Diagnostic: UI stall reporter (lock holder + all-task backtraces after 8 s without a frame) to find the 0.2.x start-up freeze. Still has the freeze. |
 | 0.3.0-beta | 2026-10-09 | (this commit) | 1999392 B | 27bab9161f9f8e8cc0e2becaa654eede19e37d976a6a34e63f479e668b9d3f44 | Safer updates: trial needs web answer + UI alive, own 5-min timer; go back from the web page, both knobs at power-on, or by itself after 3 crashes. OTA-able (boot files unchanged). |
 | 0.2.1-beta | 2026-10-09 | (this commit) | 1992736 B | c4ff2b3563e0fe51181997bdcd121730598677237362725437bf5dc543db25b4 | Wi-Fi transmit power capped at 15 dBm to cut the current spike that was browning out a weak battery at boot. |

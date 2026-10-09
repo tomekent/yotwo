@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "driver/spi_master.h"
 #include "esp_check.h"
@@ -22,6 +23,12 @@ static const char *TAG = "display";
 static const int s_cs[CHIPS] = { IOX_DISP_CS0, IOX_DISP_CS1, IOX_DISP_CS2, IOX_DISP_CS3 };
 static spi_device_handle_t s_spi;
 static uint8_t *s_tx;  // DMA-capable
+// One user at a time: the UI task pushes frames while other tasks set the brightness
+// (power_init() on the main task during start-up, the web page's settings). Without it the
+// two shared s_tx and took the same SPI device's bus lock at once, which IDF cannot hand
+// over: speckled frames, then the UI waiting for the bus for ever (the start-up freeze of
+// 0.2.0 to 0.3.2; see the journal, 2026-10-09).
+static SemaphoreHandle_t s_lock;
 
 // One chip-select framed transfer: `head` bytes of command, then `len` bytes of data.
 static esp_err_t xfer(int chip, const uint8_t *head, int head_len, const uint8_t *data, int len)
@@ -57,7 +64,8 @@ esp_err_t display_init(void)
     };
     ESP_RETURN_ON_ERROR(spi_bus_add_device(SPI2_HOST, &dev, &s_spi), TAG, "SPI device");
     s_tx = heap_caps_malloc(RAM_BYTES + 4, MALLOC_CAP_DMA);
-    ESP_RETURN_ON_FALSE(s_tx, ESP_ERR_NO_MEM, TAG, "buffer");
+    s_lock = xSemaphoreCreateMutex();
+    ESP_RETURN_ON_FALSE(s_tx && s_lock, ESP_ERR_NO_MEM, TAG, "buffer");
 
     // The stock firmware's sequence: clear every chip's RAM, then per chip reset and configure.
     static const uint8_t zeros[RAM_BYTES];
@@ -91,6 +99,7 @@ esp_err_t display_push(const display_px_t frame[DISPLAY_H][DISPLAY_W])
     static bool shown_valid[CHIPS];
     uint8_t ram[RAM_BYTES];
     esp_err_t result = ESP_OK;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
     for (int c = 0; c < CHIPS; c++) {
         const size_t rows_bytes = 4 * sizeof(frame[0]);
         if (shown_valid[c] && memcmp(shown[c * 4], frame[c * 4], rows_bytes) == 0) continue;
@@ -110,6 +119,7 @@ esp_err_t display_push(const display_px_t frame[DISPLAY_H][DISPLAY_W])
         shown_valid[c] = err == ESP_OK;
         if (err == ESP_OK) memcpy(shown[c * 4], frame[c * 4], rows_bytes);
     }
+    xSemaphoreGive(s_lock);
     return result;
 }
 
@@ -117,7 +127,9 @@ void display_set_brightness(int percent)
 {
     if (percent < 2) percent = 2;
     if (percent > 100) percent = 100;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
     for (int c = 0; c < CHIPS; c++) {
         cmd1(c, 0x37, percent * 63 / 100);
     }
+    xSemaphoreGive(s_lock);
 }

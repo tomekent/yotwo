@@ -19,10 +19,9 @@ static const char *TAG = "accel";
 #define ON_BACK         -15000
 #define POLL_MS         200
 #define HOLD_POLLS      5      // a second face-down before it counts
-// Its stack. At 2560 (0.2.0 to 0.3.1) every start froze with the display waiting for an
-// SPI bus nobody held, and starting without this task cured it. Most likely the stack
-// overflowed (a log line on top of an I2C read) past FreeRTOS's end-of-stack check into
-// the display's bus lock, allocated just before it. How much is used is logged, to confirm.
+// Its stack: 2560 in 0.2.x, raised to leave room for a log line on top of an I2C read.
+// (It was first suspected of the start-up freeze, wrongly: that was two tasks using the
+// display at once, fixed in display.c.) How much is used is logged.
 #define STACK_BYTES     4096
 
 static i2c_master_dev_handle_t s_dev;
