@@ -19,6 +19,11 @@ static const char *TAG = "accel";
 #define ON_BACK         -15000
 #define POLL_MS         200
 #define HOLD_POLLS      5      // a second face-down before it counts
+// Its stack. At 2560 (0.2.0 to 0.3.1) every start froze with the display waiting for an
+// SPI bus nobody held, and starting without this task cured it. Most likely the stack
+// overflowed (a log line on top of an I2C read) past FreeRTOS's end-of-stack check into
+// the display's bus lock, allocated just before it. How much is used is logged, to confirm.
+#define STACK_BYTES     4096
 
 static i2c_master_dev_handle_t s_dev;
 static volatile bool s_face_down;
@@ -45,10 +50,13 @@ static const char *pose_name(int16_t z)
 
 static void accel_task(void *arg)
 {
-    int held = 0, failures = 0;
+    int held = 0, failures = 0, polls = 0;
     const char *last_pose = NULL;
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(POLL_MS));
+        if (++polls == 50) {  // ten seconds in, with the start-up log lines behind it
+            ESP_LOGI(TAG, "stack: %u of %d bytes never used", (unsigned)uxTaskGetStackHighWaterMark(NULL), STACK_BYTES);
+        }
         int16_t z;
         if (read_z(&z) != ESP_OK) {
             if (++failures == 10) ESP_LOGW(TAG, "accelerometer not answering");
@@ -95,7 +103,7 @@ esp_err_t accel_init(i2c_master_bus_handle_t bus)
     // 25 Hz, normal mode, X/Y/Z on; block data update, +-2 g.
     ESP_RETURN_ON_ERROR(write_reg(REG_CTRL1, 0x37), TAG, "ctrl1");
     ESP_RETURN_ON_ERROR(write_reg(REG_CTRL4, 0x80), TAG, "ctrl4");
-    xTaskCreatePinnedToCore(accel_task, "accel", 2560, NULL, 2, NULL, 1);
+    xTaskCreatePinnedToCore(accel_task, "accel", STACK_BYTES, NULL, 2, NULL, 1);
     ESP_LOGI(TAG, "LIS2DH12 ready");
     return ESP_OK;
 }
