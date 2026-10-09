@@ -103,6 +103,9 @@ void host_set_ring(unsigned rgb) { printf("  [host] ring %06X\n", rgb); }
 bool host_face_down(void) { return s_face; }
 int host_light_setting(ui_light_setting_t w) { return s_light[w]; }
 void host_set_light_setting(ui_light_setting_t w, int v) { s_light[w] = v; printf("  [host] light setting %d = %d\n", w, v); }
+static int s_bright[2] = { 80, 40 };
+int host_bright_setting(ui_bright_t which) { return s_bright[which]; }
+void host_set_bright_setting(ui_bright_t which, int percent) { s_bright[which] = percent; printf("  [host] bright setting %d = %d\n", which, percent); }
 int host_volume_limit(void) { return s_vol_limit; }
 void host_set_volume_limit(int percent) { s_vol_limit = percent; printf("  [host] volume limit %d\n", percent); }
 static int s_auto_off = 60;

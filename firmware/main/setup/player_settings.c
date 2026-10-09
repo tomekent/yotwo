@@ -23,6 +23,8 @@ void player_settings_to_json(cJSON *o)
     cJSON_AddStringToObject(o, "tz", host_timezone());
     cJSON_AddNumberToObject(o, "auto_off", host_auto_off());
     cJSON_AddNumberToObject(o, "vol_limit", host_volume_limit());
+    cJSON_AddNumberToObject(o, "bright_day", host_bright_setting(UI_BRIGHT_DAY));
+    cJSON_AddNumberToObject(o, "bright_night", host_bright_setting(UI_BRIGHT_NIGHT));
     cJSON_AddBoolToObject(o, "clock24", host_clock_setting(UI_CLOCK_24H));
     cJSON_AddNumberToObject(o, "rise", host_clock_setting(UI_CLOCK_RISE));
     cJSON_AddNumberToObject(o, "dusk", host_clock_setting(UI_CLOCK_SET));
@@ -60,6 +62,8 @@ void player_settings_from_json(const cJSON *req)
     const int auto_off = num(req, "auto_off", -1);
     if (auto_off >= 0) host_set_auto_off(auto_off);
     host_set_volume_limit(num(req, "vol_limit", 0));  // ignored unless 10-100
+    host_set_bright_setting(UI_BRIGHT_DAY, num(req, "bright_day", 0));      // likewise
+    host_set_bright_setting(UI_BRIGHT_NIGHT, num(req, "bright_night", 0));
     // The LED ring. Values out of range are ignored by the setters.
     const cJSON *night = cJSON_GetObjectItem(req, "night"), *wake = cJSON_GetObjectItem(req, "wake");
     if (cJSON_IsBool(night)) host_set_light_setting(UI_LIGHT_NIGHT, cJSON_IsTrue(night));

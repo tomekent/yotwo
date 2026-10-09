@@ -325,6 +325,33 @@ void host_set_light_setting(ui_light_setting_t which, int value)
     flash_safe(save_light, NULL);
 }
 
+/* Display brightness by day and by night (ui_core blends between them with the clock). */
+
+static int s_bright[2] = { 80, 40 };
+static const char *const BRIGHT_KEY[2] = { "brday", "brnight" };
+
+int host_bright_setting(ui_bright_t which) { return s_bright[which]; }
+
+static void save_bright(void *arg)
+{
+    nvs_handle_t h;
+    if (nvs_open("ui", NVS_READWRITE, &h) == ESP_OK) {
+        for (int i = 0; i < 2; i++) nvs_set_u8(h, BRIGHT_KEY[i], (uint8_t)s_bright[i]);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+}
+
+void host_set_bright_setting(ui_bright_t which, int percent)
+{
+    if ((which != UI_BRIGHT_DAY && which != UI_BRIGHT_NIGHT) || percent < 10 || percent > 100 ||
+        percent == s_bright[which]) {
+        return;
+    }
+    s_bright[which] = percent;
+    flash_safe(save_bright, NULL);
+}
+
 int host_volume_limit(void) { return s_volume_limit; }
 
 static void save_volume_limit(void *arg)
@@ -789,6 +816,10 @@ void ui_init(QueueHandle_t events)
         }
         uint8_t limit;
         if (nvs_get_u8(h, "vollimit", &limit) == ESP_OK && limit >= 10 && limit <= 100) s_volume_limit = limit;
+        for (int i = 0; i < 2; i++) {
+            uint8_t b;
+            if (nvs_get_u8(h, BRIGHT_KEY[i], &b) == ESP_OK && b >= 10 && b <= 100) s_bright[i] = b;
+        }
         for (int i = 0; i < 5; i++) {
             uint32_t v;
             if (nvs_get_u32(h, LIGHT_KEY[i], &v) == ESP_OK) s_light[i] = (int)v;

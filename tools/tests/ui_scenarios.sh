@@ -18,7 +18,9 @@ check() { if [ "$1" = ok ]; then pass=$((pass + 1)); else fail=$((fail + 1)); ec
 has()   { n=$1; re=$2; shift 2; out=$("$BIN" "$@" 2>&1); if echo "$out" | grep -Eq -- "$re"; then check ok; else check no "$n (wanted: $re)" "$out"; fi; }
 hasnt() { n=$1; re=$2; shift 2; out=$("$BIN" "$@" 2>&1); if echo "$out" | grep -Eq -- "$re"; then check no "$n (unwanted: $re)" "$out"; else check ok; fi; }
 noseq() { n=$1; bad=$2; shift 2; out=$("$BIN" "$@" 2>&1); got=$(echo "$out" | sed -n 's/^  \[host\] //p' | tr '\n' '|'); case "$got" in *"$bad"*) check no "$n (unwanted: $bad; got: $got)" "$out" ;; *) check ok ;; esac; }
-seq_()  { n=$1; want=$2; shift 2; out=$("$BIN" "$@" 2>&1); got=$(echo "$out" | sed -n 's/^  \[host\] //p' | tr '\n' '|'); case "$got" in *"$want"*) check ok ;; *) check no "$n (wanted: $want; got: $got)" "$out" ;; esac; }
+# (seq_ leaves out the display's brightness changes unless the wanted run mentions them.)
+hostrun() { if echo "$1" | grep -q brightness; then cat; else grep -v '^brightness '; fi; }
+seq_()  { n=$1; want=$2; shift 2; out=$("$BIN" "$@" 2>&1); got=$(echo "$out" | sed -n 's/^  \[host\] //p' | hostrun "$want" | tr '\n' '|'); case "$got" in *"$want"*) check ok ;; *) check no "$n (wanted: $want; got: $got)" "$out" ;; esac; }
 
 # --- starting to play
 has   "left press after switching on resumes the last book" 'play "Charlie and the Great Glass Elevator"' boot t80 lp
@@ -32,6 +34,8 @@ has   "a card put in before the library has loaded still plays" 'play "The Gruff
 has   "an unknown card says NEW and is linked by both knobs" 'card X linked to'                         boot t80 lp t40 card:X both
 seq_  "a sleep card plays, dims, and pauses when taken out"  'play "Charlie and the Great Glass Elevator"|brightness 3|pause|' boot t80 card:S t40 nocard
 has   "a sleep card dims the display"                        'brightness 3$'                            boot t80 card:S t5
+seq_  "taking the sleep card out restores the brightness"    'brightness 3|pause|brightness 80|'          boot t80 card:S t40 nocard t5
+seq_  "...and putting it back dims it again"                 'brightness 3|pause|brightness 80|resume|brightness 3|' boot t80 card:S t40 nocard t5 card:S t5
 seq_  "the sleep timer pauses at its end"                    'brightness 3|pause|'                      endless boot t80 card:S t40 m31
 hasnt "...and not before"                                    'pause'                                    endless boot t80 card:S t40 m28
 seq_  "the sleep timer is frozen while the card is out"      'pause|resume|pause|'                      endless boot t80 card:S t40 m10 nocard m40 card:S m21
@@ -65,9 +69,12 @@ hasnt "an empty battery on the charger does not"             'power off'        
 
 # --- settings
 has   "SET > AUTO sets the switch-off time"                  'auto-off 120'       boot t80 rh r- rp r- r- r- r- rp r+ rp
-has   "SET > CLK > RISE sets the sunrise"                    'clock setting 1 = 435' boot t80 rh r- rp r- r- r- r- r- rp r+ rp r+ rp
+has   "SET > CLK > RISE sets the sunrise"                    'clock setting 1 = 435' boot t80 rh r- rp r- r- r- r- r- r- rp r+ rp r+ rp
 has   "SET > VOL sets the volume limit (default 80, in tens)" 'volume limit 90'    boot t80 rh r- rp r- r- r- rp r+ rp
 has   "...and shows the current limit first"                 'W\.W\.WWW|WWW\.WWW' boot t80 rh r- rp r- r- r- rp show
+has   "SET > BRT > DAY sets the day brightness (default 80)" 'bright setting 0 = 90' boot t80 rh r- rp r- r- r- r- r- rp rp r+ rp
+has   "SET > BRT > NITE sets the night brightness (default 40)" 'bright setting 1 = 30' boot t80 rh r- rp r- r- r- r- r- rp r+ rp r- rp
+has   "...the display shows the level as it is chosen"      'brightness 90$'                          boot t80 rh r- rp r- r- r- r- r- rp rp r+ t2
 has   "SET > WIFI starts setup, and a hold leaves it"        'setup stopped'      boot t80 rh r- rp r- rp rh
 has   "a hold on the start-up screen opens setup"            'setup started'      status:WIFI rh
 hasnt "a hold elsewhere does not"                            'setup started'      boot t80 rh rh rh

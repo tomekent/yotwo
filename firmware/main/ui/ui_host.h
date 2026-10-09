@@ -109,6 +109,11 @@ int host_light_setting(ui_light_setting_t which);
 void host_set_light_setting(ui_light_setting_t which, int value);
 // The loudest the player may go, percent of its full output (10-100). host_set_volume() and
 // the volume in ui_playback_t stay 0-100: that range is spread over 0 to the limit.
+// Display brightness by day and by night, 10-100 %; between them it follows the clock's
+// sunrise and sunset.
+typedef enum { UI_BRIGHT_DAY, UI_BRIGHT_NIGHT } ui_bright_t;
+int host_bright_setting(ui_bright_t which);
+void host_set_bright_setting(ui_bright_t which, int percent);
 int host_volume_limit(void);
 void host_set_volume_limit(int percent);
 // Minutes left alone on battery before the player switches itself off; 0 = never.

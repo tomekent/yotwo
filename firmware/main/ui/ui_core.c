@@ -9,7 +9,7 @@
 
 typedef enum {
     M_STATUS, M_SETUP, M_PLAYER, M_CHAPTER, M_MENU, M_GROUPS, M_BOOKS, M_SLEEP,
-    M_SETTINGS, M_LIBS, M_VIEW, M_READ, M_SPEED, M_CARD, M_CARD_MIN, M_EXT, M_CLOCK_SET, M_CLOCK_PICK, M_AUTO_OFF, M_VOL_LIMIT, M_LIGHT_SET, M_LIGHT_PICK, M_OFF
+    M_SETTINGS, M_LIBS, M_VIEW, M_READ, M_SPEED, M_CARD, M_CARD_MIN, M_EXT, M_CLOCK_SET, M_CLOCK_PICK, M_AUTO_OFF, M_VOL_LIMIT, M_LIGHT_SET, M_LIGHT_PICK, M_BRT_SET, M_BRT_PICK, M_OFF
 } screen_t;
 typedef enum {
     OV_NONE, OV_VOLUME, OV_PLAYPAUSE, OV_SLEEP, OV_WORD, OV_MESSAGE, OV_HEART, OV_BATTERY, OV_WIFI
@@ -21,7 +21,7 @@ typedef enum { V_LAST, V_NEW, V_FAV, V_DL, V_TITLE, V_AUTHOR, V_SERIES, V_COUNT 
 enum { MENU_SLEEP = V_COUNT, MENU_SETTINGS, MENU_ITEMS };
 // Settings: which library, cover art or text, readability mode, the card in the slot,
 // and how long a finished sleep card adds when it is put back.
-enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_AUTO_OFF, SET_VOL_LIMIT, SET_LIGHT, SET_WIFI, SET_ITEMS };
+enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SET_CLOCK, SET_BRIGHT, SET_AUTO_OFF, SET_VOL_LIMIT, SET_LIGHT, SET_WIFI, SET_ITEMS };
 
 #define MS(ms)         ((ms) / UI_FRAME_MS)  // a time in ticks
 #define OVERLAY_FRAMES MS(1440)
@@ -31,7 +31,7 @@ enum { SET_LIBRARY, SET_STYLE, SET_READABLE, SET_SPEED, SET_CARD, SET_EXTEND, SE
 #define HEART_FRAMES   MS(1280)  // the favourite animation
 
 static const char *const MENU[MENU_ITEMS] = { "LAST", "NEW", "FAV", "DOWN", "A-Z", "AUTH", "SERI", "BED", "SET" };
-static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "AUTO", "VOL", "LITE", "WIFI" };
+static const char *const SETTINGS[SET_ITEMS] = { "LIB", "VIEW", "READ", "SPD", "CARD", "EXT", "CLK", "BRT", "AUTO", "VOL", "LITE", "WIFI" };
 // Scroll speeds, in pixels a second. MED is what it has always been.
 static const char *const SPEED_LABEL[] = { "MIN", "SLOW", "MED", "FAST" };
 static const int SPEED_PX[] = { 5, 8, 12, 18 };
@@ -68,12 +68,13 @@ static const unsigned COLOUR_RGB[] = { 0xFF0000, 0xFF5A00, 0xFFC000, 0x00FF00, 0
 static const int HOLD_MINUTES[] = { 5, 10, 15 };
 #define HOLD_OPTIONS 3
 #define WAKE_RGB 0xFF6A14  // a warm orange, sunrise
-// Display brightness, percent: by day and by night (it follows the clock's sunrise and
-// sunset), a quarter of that once no knob has been touched for a minute, and barely lit in
-// sleep mode.
-#define BRIGHT_DAY   80
-#define BRIGHT_NIGHT 40
+// Display brightness, percent: by day and by night (set under SET > BRT; it follows the
+// clock's sunrise and sunset between them), a quarter of that once no knob has been touched
+// for a minute, and barely lit in sleep mode.
 #define BRIGHT_SLEEP 3
+static const char *const BRIGHT_ITEMS[] = { "DAY", "NITE" };
+#define BRIGHT_ITEM_COUNT 2
+#define BRIGHT_OPTIONS 10  // 10 to 100 %
 #define DIM_IDLE     MS(60000)
 #define CLOCK_IDLE MS(30000)  // with nothing playing and no knob touched, the clock comes up
 static const char *const ON_OFF[] = { "ON", "OFF" };
@@ -125,6 +126,7 @@ static unsigned s_flat_at;     // when to switch off for an empty battery; 0 = n
 static int s_brightness = -1;  // what the display was last set to
 static bool s_offline;          // no Wi-Fi for a while: only downloaded books are on offer
 static int s_light_item;       // which of LIGHT_ITEMS is being set
+static int s_bright_item;      // which of BRIGHT_ITEMS is being set
 static bool s_face_down;       // lying on its face: display off, nightlight on
 static int s_wake;             // the wake light now, 0 (off) to 256 (full); 0 when not in its time
 static bool s_wake_cancelled;  // a button was pressed during this morning's wake light
@@ -143,7 +145,8 @@ static bool s_books_waiting;  // the books arrived before BOOT_MIN
 static ui_card_kind_t s_card;       // what is in the slot (as of the last card event)
 static bool s_card_pending;         // a card arrived before the library had loaded
 // Sleep mode, started by a sleep card: the display is dimmed and the timer runs while the
-// card is in. Taking the card out pauses the book and stops the clock.
+// card is in. Taking the card out pauses the book, stops the clock and restores the
+// brightness.
 static bool s_sleep_mode;
 static unsigned s_sleep_left;       // frames left on the clock while the card is out
 static bool s_sleep_done;           // the timer ran out (so the next insert extends it)
@@ -469,6 +472,8 @@ static void right_turn(int d)
     case M_VOL_LIMIT: s_pick = wrapi(s_pick + d, VOL_LIMIT_OPTIONS); break;
     case M_LIGHT_SET:  s_light_item = wrapi(s_light_item + d, LIGHT_ITEM_COUNT); break;
     case M_LIGHT_PICK: s_pick = wrapi(s_pick + d, light_options()); break;
+    case M_BRT_SET:    s_bright_item = wrapi(s_bright_item + d, BRIGHT_ITEM_COUNT); break;
+    case M_BRT_PICK:   s_pick = wrapi(s_pick + d, BRIGHT_OPTIONS); break;
     case M_SPEED:    s_pick = wrapi(s_pick + d, SPEED_OPTIONS); break;
     case M_CLOCK_SET:  s_clock_item = wrapi(s_clock_item + d, CLOCK_ITEM_COUNT); break;
     case M_CLOCK_PICK: s_pick = wrapi(s_pick + d, clock_options()); break;
@@ -565,6 +570,9 @@ static void settings_select(void)
             s_pick = 0;
             go(M_CARD);
         }
+    } else if (s_setting == SET_BRIGHT) {
+        s_bright_item = 0;
+        go(M_BRT_SET);
     } else if (s_setting == SET_LIGHT) {
         s_light_item = 0;
         go(M_LIGHT_SET);
@@ -674,6 +682,14 @@ static void right_press(void)
         host_set_light_setting(LIGHT_KEYS[s_light_item], light_option_value(s_pick));
         go(M_LIGHT_SET);
         break;
+    case M_BRT_SET:
+        s_pick = clampi(host_bright_setting((ui_bright_t)s_bright_item) / 10 - 1, 0, BRIGHT_OPTIONS - 1);
+        go(M_BRT_PICK);
+        break;
+    case M_BRT_PICK:
+        host_set_bright_setting((ui_bright_t)s_bright_item, (s_pick + 1) * 10);
+        go(M_BRT_SET);
+        break;
     case M_CLOCK_SET:
         s_pick = 0;
         for (int i = 0; i < clock_options(); i++) {
@@ -753,6 +769,8 @@ static void right_hold(void)
     case M_LIGHT_SET:
     case M_EXT:      go(M_SETTINGS); break;
     case M_LIGHT_PICK: go(M_LIGHT_SET); break;
+    case M_BRT_SET:    go(M_SETTINGS); break;
+    case M_BRT_PICK:   go(M_BRT_SET); break;
     case M_CLOCK_PICK: go(M_CLOCK_SET); break;
     case M_CARD_MIN: s_pick = 0; go(M_CARD); break;
     default:
@@ -799,9 +817,9 @@ static void card_in(void)
         break;
     case UI_CARD_SLEEP: {
         int minutes = host_card_minutes();
+        s_sleep_dim = true;  // dimmed while the card is in, every time
         if (!s_sleep_mode) {
             s_sleep_mode = true;
-            s_sleep_dim = true;
             s_sleep_at = s_t + minutes_to_frames(minutes);
         } else if (s_sleep_done) {
             minutes = host_sleep_extend();  // it had finished: a little longer
@@ -835,6 +853,7 @@ static void card_out(void)
         host_pause();
         s_sleep_left = s_sleep_at > s_t ? s_sleep_at - s_t : 0;  // stop the clock
         s_sleep_at = 0;
+        s_sleep_dim = false;  // the usual brightness while it is out; back in, dim again
     }
 }
 
@@ -1068,6 +1087,7 @@ static const icon_t ICON_DOWN    = { { "....##....", "....##....", "....##....",
 static const icon_t ICON_GEAR    = { { "...##.....", ".#.##.#...", "..####....", "###..###..", "###..###..", "..####....", ".#.##.#...", "...##....." }, 0xBDBDBD };
 static const icon_t ICON_GLASS   = { { "..###.....", ".#...#....", ".#...#....", ".#...#....", "..###.....", ".....#....", "......#..." }, 0xFFD166 };
 static const icon_t ICON_CARD    = { { ".########.", ".#......#.", ".#.##...#.", ".#.##...#.", ".#......#.", ".#......#.", ".########." }, 0x40E0D0 };
+static const icon_t ICON_SUN     = { { "....#.....", ".#.....#..", "...###....", "#.#####.#.", "...###....", ".#.....#..", "....#....." }, 0xFFD166 };
 static const icon_t ICON_WIFI    = { { "..######..", ".#......#.", "...####...", "..#....#..", "....##....", "....##...." }, 0x8FD3FF };
 static const icon_t ICON_POWER   = { { "....#.....", "..#.#.#...", ".#..#..#..", ".#..#..#..", ".#.....#..", "..#...#...", "...###...." }, 0xFF4D4D };
 static const icon_t ICON_LAMP    = { { "...####...", "..#....#..", ".#......#.", ".#......#.", ".#......#.", "..#....#..", "...####..." }, 0xFFB347 };  // the LED ring
@@ -1536,7 +1556,7 @@ static void draw_screen(void)
         break;
     case M_SETTINGS: {
         static const icon_t *const icons[SET_ITEMS] = { &ICON_LIBRARY, &ICON_EYE, &ICON_GLASS, &ICON_SPEED,
-                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_POWER, &ICON_LOUD, &ICON_LAMP, &ICON_WIFI };
+                                                        &ICON_CARD, &ICON_PLUS, &ICON_CLOCK, &ICON_SUN, &ICON_POWER, &ICON_LOUD, &ICON_LAMP, &ICON_WIFI };
         draw_card(NULL, icons[s_setting], SETTINGS[s_setting], GFX_WHITE, s_setting, SET_ITEMS, false, false);
         break;
     }
@@ -1566,6 +1586,16 @@ static void draw_screen(void)
         draw_card(NULL, ext ? &ICON_PLUS : &ICON_MOON, label, GFX_WHITE, s_pick,
                   ext ? EXTEND_OPTIONS : CARD_MINUTE_OPTIONS,
                   minutes == (ext ? host_sleep_extend() : (s_card == UI_CARD_SLEEP ? host_card_minutes() : 0)), false);
+        break;
+    }
+    case M_BRT_SET:
+        draw_card(NULL, &ICON_SUN, BRIGHT_ITEMS[s_bright_item], GFX_WHITE, s_bright_item, BRIGHT_ITEM_COUNT, false, false);
+        break;
+    case M_BRT_PICK: {
+        char label[8];
+        snprintf(label, sizeof(label), "%d", (s_pick + 1) * 10);
+        draw_card(NULL, &ICON_SUN, label, GFX_WHITE, s_pick, BRIGHT_OPTIONS,
+                  (s_pick + 1) * 10 == host_bright_setting((ui_bright_t)s_bright_item), false);
         break;
     }
     case M_LIGHT_SET:
@@ -1742,10 +1772,12 @@ void ui_core_tick(void)
         s_clock_on = true;
     }
     // Brightness: the day's or the night's level, lower when left alone, lowest in sleep mode.
-    int level = BRIGHT_DAY;
-    if (host_time(&now_s)) level = BRIGHT_NIGHT + (BRIGHT_DAY - BRIGHT_NIGHT) * daylight(now_s) / 256;
+    const int day_level = host_bright_setting(UI_BRIGHT_DAY), night_level = host_bright_setting(UI_BRIGHT_NIGHT);
+    int level = day_level;
+    if (host_time(&now_s)) level = night_level + (day_level - night_level) * daylight(now_s) / 256;
     if (s_mode != M_STATUS && s_mode != M_SETUP && s_t - s_last_touch >= DIM_IDLE) level /= 4;
     if (s_sleep_dim) level = BRIGHT_SLEEP;
+    if (s_mode == M_BRT_PICK) level = (s_pick + 1) * 10;  // shown as it is chosen
     if (level != s_brightness && s_mode != M_OFF) {
         s_brightness = level;
         host_set_brightness(level);
