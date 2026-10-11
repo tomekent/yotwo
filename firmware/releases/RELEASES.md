@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.5.3-beta | 2026-10-11 | (this commit) | 2002032 B | 4a04fad3651154934f97c02cb469112381521a861e7ca1940bd00dbb8769f86b | Clock: no sky glow, just the sun and moon on black. OTA-able. |
 | 0.5.2-beta | 2026-10-09 | (this commit) | 2002080 B | 362141a9b8fb99994f51abcbc24af5681ba642bc7725a350767f8ad07254fc78 | Any button leaves setup (SET > WIFI); fix a race that could stop the setup page's server starting. OTA-able. |
 | 0.5.1-beta | 2026-10-09 | (this commit) | 2001904 B | 5043ba552df51c2aafcb5770507b19bf247a061c2a6a817117460b420091612b | Downloads page names and covers for favourites in other libraries (looked up on the server, cached on the SD card). OTA-able. |
 | 0.5.0-beta | 2026-10-09 | (this commit) | 2000048 B | 04d36762510cf93974381a7f6d21cf4ffb63356f3627f4d83ad686f6131bd19b | Day and night display brightness settings (SET > BRT, web page); fix: removing a sleep card restores the brightness. OTA-able. |

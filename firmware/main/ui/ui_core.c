@@ -1685,18 +1685,18 @@ static int daylight(int second_of_day)
 
 static void draw_clock(int second_of_day)
 {
-    static const gfx_color_t NIGHT = { 0, 0, 0 }, DAY = { 92, 70, 22 };  // unlit; a warm light yellow
     // Six by six. Sun: O the darker orange rim, I the lighter middle. Moon: L its light
     // face, S a speckle, D the dark edge, heavier down the right as its shadow.
     static const char *const SUN[6]  = { ".OOOO.", "OOIIOO", "OIIIIO", "OIIIIO", "OOIIOO", ".OOOO." };
     static const char *const MOON[6] = { ".DLLD.", "DLLSLD", "LSLLLD", "LLLSDD", "DLSLDD", ".DDDD." };
     const int day = daylight(second_of_day);
-    // The sky dims faster than the sun sinks (by the square), and is out altogether at night.
-    const gfx_color_t sky = mix(NIGHT, DAY, day * day / 256);
+    // No sky: just the sun and moon on black, day and night (it was a warm glow by day until
+    // 0.5.3, which the user found too much).
+    const gfx_color_t sky = { 0, 0, 0 };
     for (int y = 0; y < DISPLAY_H; y++) {
         for (int x = 0; x < DISPLAY_W; x++) gfx_set(x, y, sky);
     }
-    // The moon keeps its place and fades with the night.
+    // The moon keeps its place and fades out as the day comes.
     for (int r = 0; r < 6 && day < 256; r++) {
         for (int c = 0; c < 6; c++) {
             const char k = MOON[r][c];
