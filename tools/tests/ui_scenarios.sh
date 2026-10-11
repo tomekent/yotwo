@@ -75,6 +75,8 @@ has   "...and shows the current limit first"                 'W\.W\.WWW|WWW\.WWW
 has   "SET > BRT > DAY sets the day brightness (default 80)" 'bright setting 0 = 90' boot t80 rh r- rp r- r- r- r- r- rp rp r+ rp
 has   "SET > BRT > NITE sets the night brightness (default 40)" 'bright setting 1 = 30' boot t80 rh r- rp r- r- r- r- r- rp r+ rp r- rp
 has   "...the display shows the level as it is chosen"      'brightness 90$'                          boot t80 rh r- rp r- r- r- r- r- rp rp r+ t2
+has   "the display test runs at a fixed 60 % brightness"   'brightness 60$'     boot t80 dtest t5
+seq_  "...and gives the screen back after about 20 s"     'brightness 60|brightness 80|' boot t80 dtest t600
 has   "SET > WIFI starts setup, and a hold leaves it"        'setup stopped'      boot t80 rh r- rp r- rp rh
 has   "...and so does a press of either knob"              'setup stopped'      boot t80 rh r- rp r- rp lp
 has   "...or the power button"                             'setup stopped'      boot t80 rh r- rp r- rp pwr

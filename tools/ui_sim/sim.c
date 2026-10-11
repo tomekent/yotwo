@@ -291,6 +291,7 @@ int main(int argc, char **argv)
         else if (!strcmp(a, "pwr")) ev.type = UI_EV_POWER_PRESS;
         else if (!strcmp(a, "plug")) { s_bat.plugged = true; ev.type = UI_EV_PLUGGED; }
         else if (!strcmp(a, "unplug")) { s_bat.plugged = false; ev.type = UI_EV_UNPLUGGED; }
+        else if (!strcmp(a, "dtest")) { ui_core_display_test(); continue; }  // the web page's display test
         else if (!strcmp(a, "endless")) { s_endless = true; continue; }
         else if (!strncmp(a, "face:", 5)) { s_face = a[5] == '1'; continue; }
         else if (!strncmp(a, "wake:", 5)) { s_light[3] = a[5] == '1'; continue; }

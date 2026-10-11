@@ -35,6 +35,8 @@ void ui_show_status(const char *word, uint32_t rgb);
 void ui_show_setup(const char *password);
 // Up to four characters on the display for a while (the update code).
 void ui_show_word(const char *text, int seconds);
+// The display test (see ui_core_display_test()).
+void ui_display_test(void);
 
 /* For the player's web page (web/web.c) and the setup page. All safe from any task. */
 

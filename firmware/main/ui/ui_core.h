@@ -34,6 +34,7 @@ void ui_core_setup(const char *password);             // the setup page's 4-digi
 void ui_core_message(const char *msg);
 // Up to four characters in the middle of the display for `seconds` (any knob still works
 // underneath; another overlay replaces it).
+void ui_core_display_test(void);                                     // red, green, blue, white, then a row and column sweep (about 20 s)
 void ui_core_word(const char *text, unsigned seconds);                // scrolls once over anything; NULL clears
 // The books were (re)loaded, or a library switch finished (successfully or not).
 void ui_core_books_changed(void);

@@ -913,6 +913,13 @@ void ui_show_setup(const char *password)
     lvgl_port_unlock();
 }
 
+void ui_display_test(void)
+{
+    lvgl_port_lock(0);
+    ui_core_display_test();
+    lvgl_port_unlock();
+}
+
 void ui_show_word(const char *text, int seconds)
 {
     lvgl_port_lock(0);

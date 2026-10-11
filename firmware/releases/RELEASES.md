@@ -24,6 +24,7 @@ these archived files are the exact artifacts.
 
 | Version | Date | Commit | Size | SHA-256 | Notes |
 |---|---|---|---|---|---|
+| 0.5.5-beta | 2026-10-11 | (this commit) | 2003104 B | 1a076f30283be2a1996a0a30968bd1449172c3f9f27dc368cac1afdbf591d563 | Display test on the web page (solid R/G/B/W, then row and column sweeps). OTA-able. |
 | 0.5.4-beta | 2026-10-11 | (this commit) | 2002032 B | 082dbb74e15e9e061ee8c5d59757e9d9f40e9c0e370c882ce18e7356f1eb09c5 | Both knobs reversed (turned the wrong way). OTA-able. |
 | 0.5.3-beta | 2026-10-11 | (this commit) | 2002032 B | 4a04fad3651154934f97c02cb469112381521a861e7ca1940bd00dbb8769f86b | Clock: no sky glow, just the sun and moon on black. OTA-able. |
 | 0.5.2-beta | 2026-10-09 | (this commit) | 2002080 B | 362141a9b8fb99994f51abcbc24af5681ba642bc7725a350767f8ad07254fc78 | Any button leaves setup (SET > WIFI); fix a race that could stop the setup page's server starting. OTA-able. |

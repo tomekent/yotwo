@@ -860,6 +860,16 @@ static esp_err_t on_account_post(httpd_req_t *req)
     return send_json(req, o);
 }
 
+/* ---------- display test ---------- */
+
+static esp_err_t on_display_test(httpd_req_t *req)
+{
+    if (!admit(req, ASK_CHANGE)) return ESP_OK;
+    ESP_LOGI(TAG, "display test from the web page");
+    ui_display_test();
+    return send_json(req, cJSON_CreateObject());
+}
+
 /* ---------- formatting the SD card ---------- */
 
 // Asks the player to show a code (the same kind as for a firmware update).
@@ -941,6 +951,7 @@ void web_start(void)
         { .uri = "/api/account", .method = HTTP_GET, .handler = on_account },
         { .uri = "/api/account/code", .method = HTTP_POST, .handler = on_account_code },
         { .uri = "/api/account", .method = HTTP_POST, .handler = on_account_post },
+        { .uri = "/api/display/test", .method = HTTP_POST, .handler = on_display_test },
         { .uri = "/api/format/code", .method = HTTP_POST, .handler = on_format_code },
         { .uri = "/api/format", .method = HTTP_POST, .handler = on_format },
         { .uri = "/*", .method = HTTP_OPTIONS, .handler = on_preflight },

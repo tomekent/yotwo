@@ -1751,6 +1751,48 @@ static void draw_clock(int second_of_day)
     }
 }
 
+// Display test (from the web page): the whole screen red, green, blue and white for three
+// seconds each, then a white row sweeping down and a white column across, a quarter second
+// a step. A pixel whose green or blue is dead shows up in the solid colours; a dead pixel,
+// row or column in the sweep. At a fixed brightness, so idle dimming cannot hide anything.
+#define TEST_SOLID  MS(3000)
+#define TEST_STEP   MS(250)
+#define TEST_LEVEL  60
+static bool s_testing;
+static unsigned s_test_from;
+
+void ui_core_display_test(void)
+{
+    if (s_mode == M_OFF) return;
+    s_testing = true;
+    s_test_from = s_t;
+    s_last_touch = s_t;
+}
+
+static bool draw_display_test(void)
+{
+    if (!s_testing) return false;
+    static const gfx_color_t SOLID[4] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 255 } };
+    const unsigned e = s_t - s_test_from;
+    if (e < 4 * TEST_SOLID) {
+        for (int y = 0; y < DISPLAY_H; y++) {
+            for (int x = 0; x < DISPLAY_W; x++) gfx_set(x, y, SOLID[e / TEST_SOLID]);
+        }
+        return true;
+    }
+    const unsigned k = (e - 4 * TEST_SOLID) / TEST_STEP;
+    if (k < DISPLAY_H) {
+        for (int x = 0; x < DISPLAY_W; x++) gfx_set(x, (int)k, GFX_WHITE);
+        return true;
+    }
+    if (k < DISPLAY_H + DISPLAY_W) {
+        for (int y = 0; y < DISPLAY_H; y++) gfx_set((int)(k - DISPLAY_H), y, GFX_WHITE);
+        return true;
+    }
+    s_testing = false;
+    return false;
+}
+
 void ui_core_tick(void)
 {
     s_t++;
@@ -1783,6 +1825,7 @@ void ui_core_tick(void)
     if (host_time(&now_s)) level = night_level + (day_level - night_level) * daylight(now_s) / 256;
     if (s_mode != M_STATUS && s_mode != M_SETUP && s_t - s_last_touch >= DIM_IDLE) level /= 4;
     if (s_sleep_dim) level = BRIGHT_SLEEP;
+    if (s_testing) level = TEST_LEVEL;
     if (s_mode == M_BRT_PICK) level = (s_pick + 1) * 10;  // shown as it is chosen
     if (level != s_brightness && s_mode != M_OFF) {
         s_brightness = level;
@@ -1881,6 +1924,7 @@ void ui_core_tick(void)
     last_state = s_pb.state;
 
     gfx_clear();
+    if (draw_display_test()) return;
     if (s_face_down) return;  // face-down: the display is dark and the ring does the lighting
     switch (s_overlay) {
     case OV_VOLUME:    draw_volume(); break;
