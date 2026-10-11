@@ -14,7 +14,10 @@ static const char *TAG = "input";
 // To be confirmed on the hardware.
 #define LEFT_IS_ENC1        1
 #define COUNTS_PER_DETENT   4
-#define ENC_REVERSED        1   // the stock config marks both encoders "reverse"
+// Both knobs turned the wrong way on the player with this at 1 (2026-10-11), even though
+// the stock config marks both encoders "reverse": that flag evidently means the opposite
+// of what was assumed, or our A/B wiring of the counter differs from the stock firmware's.
+#define ENC_REVERSED        0
 
 #define POLL_MS             20
 #define HOLD_MS             700
