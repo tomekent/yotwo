@@ -167,7 +167,10 @@ requests adding them.
 
 ## License
 
-<!-- TODO(author): choose a licence. MIT is in LICENSE as a suggestion. -->
-[MIT](LICENSE) for the code in this repository. The ESP-IDF components it
-pulls in at build time (including Espressif's `esp_audio_codec`) come under
-their own licences.
+[GPL-3.0](LICENSE), with an added permission to link Espressif's
+binary-only libraries (see [NOTICE](NOTICE)). In short: you can use, change
+and share yotwo, but if you distribute it, or anything built from it, you
+must share the source of your version under the same licence.
+
+The ESP-IDF components it pulls in at build time (including Espressif's
+`esp_audio_codec`) come under their own licences.

@@ -1,0 +1,18 @@
+yotwo — custom firmware for the Yoto Player Gen 2
+Copyright (C) 2026 Tom Kent
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version. See LICENSE.
+
+Additional permission under GNU GPL version 3 section 7:
+
+If you modify this program, or any covered work, by linking or combining it
+with ESP-IDF or with libraries Espressif Systems distributes for its chips
+in binary form (such as the Wi-Fi and Bluetooth libraries and
+esp_audio_codec), containing parts covered by the terms of those libraries'
+licences, the licensors of this program grant you additional permission to
+convey the resulting work. Corresponding Source for a non-source form of
+such a combination shall include the source code for the parts of this
+program used, but need not include the source of those Espressif libraries.
