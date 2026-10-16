@@ -2031,3 +2031,14 @@ Written into step 1 of the getting-started guide, which is renamed
 - with the board out of the case it is powered from the charging base's
   lead, as in the user's photo;
 - a short note on putting the player back together.
+
+## 2026-10-16 — Placeholders tidied
+
+The user has no close-up of the soldered pins. In its place, the guide
+points to where the wires reach the board in the step 2 photo, and invites
+anyone who does this to contribute a close-up. The "opened player"
+placeholder is gone, since Yoto's own guide has the pictures. The
+setup-code placeholder is now a still from the simulator on the player
+mock-up (`docs/media/setup_display.png`), shown next to the setup page that
+asks for the code. The only placeholder left is the README's photo of a
+player in use.

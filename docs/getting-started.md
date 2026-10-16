@@ -45,9 +45,6 @@ up to and including **step 6**. Then, to get the main board out:
 6. Remove the **5 screws** that fix the main board to the screen case.
 7. Lift out the main board.
 
-> **[Photo to add: the opened player, showing where the board sits]**
-> <!-- docs/media/photo-opened.jpg -->
-
 **Soldering.** The ESP32's serial port and boot pins come out on five pins on the main
 board. Solder a wire to each:
 
@@ -64,13 +61,12 @@ the wire called **EN** is the one the BOOT button grounds to enter bootloader
 mode, and **RST** is the one that resets the chip. TX and RX cross over: the
 player's TX goes to the adapter's RX.
 
-<!-- TODO(author): which pads on the board are these? Label them on the photo. -->
+You can see the five wires reaching the board in the photo in step 2, at
+the top corner where the cable plugs in.
 
-> **[Photo to add: the board's pads for EN, RST, TX, RX and GND, labelled]**
-> <!-- docs/media/photo-pads.jpg -->
-
-> **[Photo to add: the five wires soldered on]**
-> <!-- docs/media/photo-wires.jpg -->
+> No close-up of the soldered pins yet. If you do this, a photo of the five
+> pins with their wires on would be a very welcome contribution (open an
+> issue or a pull request).
 
 Tips:
 
@@ -262,8 +258,8 @@ tools/flash.sh --first     # flashes that local build (in bootloader mode)
 
 1. **Wi-Fi.** With no Wi-Fi saved, the player starts a setup network called
    **`Yotwo-XXXX`** and shows a **four-digit code** on its display.
-   > **[Photo to add: the player showing the setup code]**
-   > <!-- docs/media/photo-setup-code.jpg (or use media/setup_code.png) -->
+
+   <img src="media/setup_display.png" alt="The player showing a four-digit setup code" width="240"> <img src="media/setup_code.png" alt="The setup page asking for the code" width="240">
 
    Join `Yotwo-XXXX` from a phone; the setup page should open by itself (if
    not, browse to `http://192.168.4.1`). Enter the code, pick your Wi-Fi,
