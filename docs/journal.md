@@ -1992,3 +1992,20 @@ The look can be tuned with environment variables (`PX_BLUR`, `GLOW1`,
   row (browsing, playing, the clock), and the usage section carries the
   others.
 - Added a line of quick links under the introduction.
+
+## 2026-10-16 — Boot/reset board: Adafruit's design and the author's photo
+
+- **Adafruit's design.** The getting-started guide now builds the boot/reset
+  board from Adafruit's "Building a Serial Programmer Breakout" page,
+  linking it and its circuit diagram. On the Gen 2 the TLV62569 regulator
+  and the 3.3 V wire are left out: the player runs from its own dock or
+  USB-C, and only GND, TX and RX go to the adapter.
+- **The photo.** The user added a photo of their set-up, labelled
+  `EN<-BOOT`, `RST<-RST`, `TX<-RX`, `RX<-TX`, `GND<-GND`, with the 5 V coming
+  from the charging base. It was converted to JPEG (2.3 MB to 0.3 MB,
+  metadata stripped) as `docs/media/yoto_board_connection.jpg`.
+- **Wire names.** The guide now uses the same names as Adafruit and the
+  photo, and explains that the wire called EN is the one the BOOT button
+  grounds (GPIO 0), while RST resets the chip. The step-1 table, the
+  Option A table, the button sketch and the jumper-wire method all use those
+  names.

@@ -42,19 +42,22 @@ Audiobookshelf library. Read it all the way through once before you start.
 The ESP32's serial port and boot pins are reached through test pads on the
 main board. You need five connections:
 
-| Signal | ESP32 pin | Connects to |
+| Wire | What it does on the ESP32 | Connects to |
 |---|---|---|
-| GND | GND | Adapter GND |
-| TX | GPIO 1 (U0TXD) | Adapter **RX** |
-| RX | GPIO 3 (U0RXD) | Adapter **TX** |
-| BOOT | GPIO 0 | Boot button (to GND) |
-| RESET | EN (CHIP_PU) | Reset button (to GND) |
+| **EN** | GPIO 0: low at reset = bootloader mode | BOOT button (to GND) |
+| **RST** | Chip reset (the ESP32's own EN / CHIP_PU pin) | RESET button, through 10 kΩ (to GND) |
+| **TX** | GPIO 1 (U0TXD) | Adapter **RX** |
+| **RX** | GPIO 3 (U0RXD) | Adapter **TX** |
+| **GND** | Ground | Adapter GND, and the other side of both buttons |
 
-TX and RX cross over: the player's TX goes to the adapter's RX.
+The wire names follow Adafruit's guide and the photo in step 2. Confusingly,
+the wire called **EN** is the one the BOOT button grounds to enter bootloader
+mode, and **RST** is the one that resets the chip. TX and RX cross over: the
+player's TX goes to the adapter's RX.
 
 <!-- TODO(author): which pads on the board are these? Label them on the photo. -->
 
-> **[Photo to add: the board's pads for GND, TX, RX, GPIO0 and EN, labelled]**
+> **[Photo to add: the board's pads for EN, RST, TX, RX and GND, labelled]**
 > <!-- docs/media/photo-pads.jpg -->
 
 > **[Photo to add: the header pins soldered on]**
@@ -97,42 +100,45 @@ It is a quarter-size Perma-Proto board with:
 
 **For the Gen 2, leave out the regulator and the 3.3 V wire.** The player
 is powered as usual, from its dock or a USB-C mod, so the board carries
-only signals. Adafruit's labels are the Mini's pad names; on the Gen 2 the
-same wires go to:
+only signals. The wires keep Adafruit's names (EN, RST, TX, RX, GND), as in
+step 1 and the photo below:
 
-| Adafruit's wire | On the Gen 2 | |
+| Wire | On the board | |
 |---|---|---|
-| "EN", to the BOOT button | **GPIO 0** | Pressed = GPIO 0 to GND |
-| "RST", through 10 kΩ to the RESET button | **EN** (chip reset) | Pressed = the chip resets |
-| TXD, to the cable's RX | **TX** (GPIO 1) | |
-| RXD, to the cable's TX | **RX** (GPIO 3) | |
-| GND | **GND** | Common ground |
-| 3.3V, from the regulator | (nothing) | Leave out, with the regulator; the cable's 5V stays unconnected |
+| EN | to the **BOOT** button | Pressed = bootloader mode at the next reset |
+| RST | through 10 kΩ to the **RESET** button | Pressed = the chip resets |
+| TX | to the adapter's **RX** | |
+| RX | to the adapter's **TX** | |
+| GND | to the adapter's **GND** and both buttons | Common ground |
+| 3.3V | (nothing) | Left out, with the regulator; the adapter's 5V stays unconnected |
 
 In short:
 
 ```
-            BOOT                    RESET
-  GPIO 0 ───o  o─── GND     EN ───[10k]───o  o─── GND
+                 BOOT                          RESET
+  EN (GPIO 0) ───o  o─── GND     RST ───[10k]───o  o─── GND
 ```
 
-Whatever the labels say, what matters is that BOOT grounds **GPIO 0** and
-RESET grounds **EN**.
+Whatever the labels, what matters is that BOOT grounds the ESP32's
+**GPIO 0** and RESET grounds its reset pin.
 
-> **[Photo to add: the boot/reset board]**
-> <!-- docs/media/photo-boot-reset-board.jpg -->
+![The boot/reset buttons on a breadboard, wired to the player and a USB-to-serial adapter](media/yoto_board_connection.jpg)
 
-> **[Photo to add: the board connected to the header and the adapter]**
-> <!-- docs/media/photo-boot-reset-wired.jpg -->
+*The author's set-up, on a breadboard: the five wires from the player's
+board (EN, RST, TX, RX, GND) come in on the left; BOOT and RESET buttons
+(with the 10 kΩ resistor) on the right; the USB-to-serial adapter's TX, RX
+and GND at the back. The player gets its 5 V from its own charging base,
+not from the adapter.*
 
 **To enter bootloader mode:** hold **BOOT**, press and release **RESET**,
 then let go of **BOOT**.
 
 ### Option B: a jumper wire
 
-No buttons: hold the GPIO 0 pad to GND with a jumper wire, reset the chip
-(touch EN to GND for a moment, or switch the player off and on with the power
-button while it's on the charger), then take the jumper off.
+No buttons: hold the **EN** wire (GPIO 0) to GND with a jumper wire. Then
+reset the chip: touch **RST** to GND for a moment, or switch the player off
+and on with the power button while it's on the charger. Then take the
+jumper off.
 
 ### Check it worked
 
