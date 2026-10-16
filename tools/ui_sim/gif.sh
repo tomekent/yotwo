@@ -53,13 +53,20 @@ frames=(-framerate 25 -i "$tmp/%05d.pam")
 case "$style" in
   device)
     # The display sits in a 235 x 235 box at (122, 120) on the 480 x 462 mockup. Each
-    # lit pixel is laid on the face with a soft glow under it.
+    # lit pixel is laid on the face, diffused.
     bg="$media/yoto_gen2_blank.png"
-    # A faint dark halo under each lit pixel keeps white text readable on the pale face.
-    graph="[1:v]scale=235:235:flags=area,format=rgba,split=3[px][g][s];[g]gblur=sigma=4[glow];"
-    graph+="[s]lutrgb=r=0:g=0:b=0,colorchannelmixer=aa=0.45,gblur=sigma=2.5[shade];"
-    graph+="[0:v]pad=iw:ih+40:0:0:color=white[bg];[bg][shade]overlay=122:120[b0];[b0][glow]overlay=122:120[b1];[b1][px]overlay=122:120:shortest=1"
-    # Half the frame rate (12.5 a second; names scroll at most a pixel a frame) halves the size.
+    # Diffused, as if shining through the face: the pixels softened by a blur, over two
+    # glows in their own colour (a tight one and a wide one), and no hard edges. The
+    # player itself is dimmed a little (its white surround keyed out first) so that
+    # white light still stands out on its pale face, as a lit player does in a room.
+    # Tunable: PX_BLUR PX_GAIN GLOW1 GLOW1_GAIN GLOW2 GLOW2_GAIN DIM.
+    graph="[1:v]scale=235:235:flags=area,format=rgba,split=3[p0][g0][w0];"
+    # (Blurred premultiplied, or the clear black around each pixel bleeds in as a dark rim.)
+    blur() { echo "premultiply=inplace=1,gblur=sigma=$1,unpremultiply=inplace=1,lut=a='min(255,val*$2)'"; }
+    graph+="[p0]$(blur ${PX_BLUR:-1.4} ${PX_GAIN:-0.88})[px];"
+    graph+="[g0]$(blur ${GLOW1:-3} ${GLOW1_GAIN:-1.4})[glow];"
+    graph+="[w0]$(blur ${GLOW2:-9} ${GLOW2_GAIN:-1.0})[wide];"
+    graph+="color=c=white:s=480x502:r=25[page];[0:v]format=rgba,colorkey=0xFFFFFF:0.03:0.02,eq=brightness=-${DIM:-0.15}:gamma=0.92[dev];[page][dev]overlay=0:0[bg];[bg][wide]overlay=122:120[b0];[b0][glow]overlay=122:120[b1];[b1][px]overlay=122:120:shortest=1"
     graph+="$(captions 0x4a4a4a 17 30),fps=12.5"
     if [[ "$out" == *.webp ]]; then  # animated WebP: a fraction of a GIF's size for the soft glow
       ffmpeg -loglevel error -y -loop 1 -framerate 25 -i "$bg" "${frames[@]}" -filter_complex "$graph" \

@@ -1965,3 +1965,17 @@ animations to be shown on it, with unlit pixels transparent.
   `docs/media/overlay/` (0.7 MB).
 - The play animation now waits for the screen to settle on the cover
   (about 16 s after a book opens in the simulator).
+
+Revised the same day: the user pointed out that their Claude Design mock-up
+made the pixels look like they were *behind* the face (diffuse), whereas
+these looked laid on top. The look is now:
+- the pixels softened by a blur, at 88 % strength;
+- a tight glow and a wide glow in each pixel's own colour, all blurred
+  premultiplied so no dark rim forms;
+- no dark halo;
+- the player itself dimmed a little (its white surround keyed out first),
+  so white light still stands out on the pale face, as a lit player does in
+  a room.
+
+The look can be tuned with environment variables (`PX_BLUR`, `GLOW1`,
+`DIM`, …) on `gif.sh`. The set is now 0.8 MB.

@@ -11,7 +11,7 @@ mkdir -p $m/overlay
 make() {
   local name="$1"; shift
   tools/ui_sim/gif.sh "$m/anim_$name.webp" "$@"
-  STYLE=overlay tools/ui_sim/gif.sh "$m/overlay/anim_$name.png" "$@"
+  [ -n "${NO_OVERLAY:-}" ] || STYLE=overlay tools/ui_sim/gif.sh "$m/overlay/anim_$name.png" "$@"
 }
 W=t80   # past the start-up animation's minimum time
 
