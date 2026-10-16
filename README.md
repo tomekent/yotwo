@@ -80,6 +80,26 @@ big Gen 2 player. So this is that.
   <img src="docs/media/web_page_covers.png" alt="The player's web page" width="600">
 </p>
 
+## yotwo compared with the original firmware
+
+| | Original Yoto firmware | yotwo |
+|---|---|---|
+| **Where content comes from** | Yoto's servers: Yoto cards, Make Your Own cards, Yoto's own streams | Your own [Audiobookshelf](https://www.audiobookshelf.org/) server. Nothing from Yoto |
+| **Accounts and cloud** | Needs a Yoto account; the player talks to Yoto's cloud | Local only. The player talks to your Audiobookshelf server and nothing else (plus an internet time server for the clock) |
+| **Choosing what to play** | Put in a card | Browse your whole library on the player with the knobs: recent, new, favourites, downloaded, A–Z, author, series. Switch libraries |
+| **Cards** | Yoto cards and Make Your Own cards (content set up through Yoto) | **Optional.** Link **any NFC card** (an old Yoto card, a blank sticker…) to any book with both knobs. Nothing is written to the card |
+| **Routine cards** | — | A sleep card: dims the screen, starts a sleep timer, carries on where you left off |
+| **Favourites** | — | Both knobs; mirrored to a collection on Audiobookshelf |
+| **Offline** | Card content is cached once played | Favourites and card books download in the background; positions sync back when Wi-Fi returns |
+| **Listening position** | On the player, per card | Synced with Audiobookshelf, so you can carry on in the Audiobookshelf app (and the other way round) |
+| **Settings** | In the Yoto app | On the player, or on its own web page (`http://yotwo.local`) |
+| **Pictures** | Pixel art for each chapter | The book's cover, scaled to 16 × 16, plus the chapter number |
+| **Clock and lights** | Clock, alarms, nightlight, day/night brightness | Clock with a gradual sunrise and sunset, sunrise wake light, face-down nightlight, day/night brightness. No alarms yet |
+| **Bluetooth** | Can be used as a Bluetooth speaker | Not supported |
+| **Updates** | From Yoto, while the Gen 2 was supported | From [Releases](https://github.com/tomekent/yotwo/releases), uploaded on the player's web page, with automatic roll-back |
+| **Installing** | Comes on the player | Open the player and flash it over a serial cable, once |
+| **Going back** | — | Restore the backup you take before installing |
+
 ## Limits
 
 - **Installing it is the hard part.** You open the player, solder a header to
