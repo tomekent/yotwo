@@ -43,6 +43,11 @@ checks. The simulator runs `firmware/main/ui/ui_core.c` unchanged against a
 fake library. It can record image strips like the ones in `docs/media/`; see
 the comment at the top of `tools/ui_sim/sim.c` for its commands.
 
+`tools/ui_sim/make_gifs.sh` remakes the animated GIFs in `docs/media/`
+(`anim_*.gif`). Each is a scripted walk through one part of the UI, recorded
+by `tools/ui_sim/gif.sh` at the player's real frame rate with captions. It
+needs ffmpeg.
+
 ## Layout
 
 ```

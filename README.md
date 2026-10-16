@@ -7,10 +7,20 @@ Browse and play your whole Audiobookshelf library from the player itself with
 the two knobs. No cards and no cloud are needed. Everything is local, on your
 own server.
 
-![Browsing books by cover: the title scrolls in, then the cover fills the display](docs/media/ui_cover_list.png)
-![The clock through a day: night, sunrise, day, sunset](docs/media/ui_clock.png)
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/anim_browse.gif" alt="Browsing books with the right knob" width="216"><br><sub>Browse with a knob</sub></td>
+    <td align="center"><img src="docs/media/anim_play.gif" alt="Playing a book: volume and chapters" width="216"><br><sub>Play, volume, chapters</sub></td>
+    <td align="center"><img src="docs/media/anim_clock.gif" alt="The clock's sunrise and sunset" width="216"><br><sub>Sunrise clock</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/anim_menu.gif" alt="The menu and the A-Z letters" width="216"><br><sub>Menu and A–Z</sub></td>
+    <td align="center"><img src="docs/media/anim_favourite.gif" alt="Favouriting with both knobs" width="216"><br><sub>Favourites</sub></td>
+    <td align="center"><img src="docs/media/anim_cards.gif" alt="Book and sleep cards" width="216"><br><sub>Cards (optional)</sub></td>
+  </tr>
+</table>
 
-<sub>Frames from the desktop simulator, which runs the same UI code as the player.</sub>
+<sub>Recorded from the desktop simulator, which runs the player's own UI code at its real speed (`tools/ui_sim/make_gifs.sh`).</sub>
 
 <!-- PHOTO TO ADD: the player running yotwo, e.g. docs/media/photo-player.jpg -->
 > **[Photo to add: a yotwo player in use]**

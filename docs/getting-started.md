@@ -194,7 +194,9 @@ enter bootloader mode again and run `tools/flash.sh` (without `--first`).
    minutes, and esptool verifies it as it goes.
 
 Then **reset the player** (RESET button, or power it off and on) and go to
-step 5.
+step 5. Every start shows yotwo's rainbow animation until it is ready:
+
+<img src="media/anim_startup.gif" alt="The start-up animation" width="216">
 
 ## 4b. Build from source
 

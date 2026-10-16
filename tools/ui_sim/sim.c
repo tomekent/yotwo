@@ -12,6 +12,7 @@
 //            pwr plug unplug bat:N   power button touch; cable in or out; set level
 //            card:X nocard a card put in (A = a book card, S = a sleep card, else new), taken out
 //            time:H:M[:S]  set the time of day (the clock shows after 30 s idle)
+//            clockrun    the time of day then moves on with the ticks (it stands still otherwise)
 //            dl:N dlrun dlhold  the first book's copy: N % arrived (-1 none), being fetched or held
 //            face:1 face:0  lying on its face, or not
 //            wake:1        the wake light on
@@ -21,6 +22,9 @@
 //            tN          advance N ticks (UI_FRAME_MS, 40 ms each)
 //            show        print the frame
 //            ppm:FILE    start recording every shown frame to FILE (a horizontal strip)
+//            rec:DIR     record every tick from here on as DIR/NNNNN.ppm (for tools/ui_sim/gif.sh)
+//            every:N     record only every Nth tick (speeds slow things up; default 1)
+//            say:TEXT    caption from this frame on, in DIR/captions.txt (use _ for spaces)
 //
 // In the text output a letter is a lit pixel: W white, O orange, G green, Y yellow, R red,
 // V violet, T turquoise, lower case = dim, '.' = off.
@@ -128,6 +132,8 @@ bool host_book_downloaded(int index) { return index == 0 || index == 5; }
 static int s_dl = -1;
 static bool s_dl_run;
 int host_book_offline(int index, bool *fetching) { *fetching = index == 1 && s_dl_run; return index == 1 ? s_dl : -1; }
+static bool s_clock_runs;
+static int s_time_ticks;
 static int s_time = -1;                           // seconds since midnight; -1 = not known
 static int s_clock[4] = { 0, 7 * 60, 19 * 60, 15 };
 bool host_time(int *second_of_day) { if (s_time < 0) return false; *second_of_day = s_time; return true; }
@@ -199,6 +205,7 @@ void host_get_playback(ui_playback_t *out)
 
 static void host_tick(void)
 {
+    if (s_clock_runs && s_time >= 0 && ++s_time_ticks >= 1000 / UI_FRAME_MS) { s_time_ticks = 0; s_time = (s_time + 1) % 86400; }
     if (s_state == UI_PLAY_LOADING && --s_loading <= 0) s_state = UI_PLAY_PLAYING;
     if (s_state != UI_PLAY_PLAYING) return;
     if (++s_pos >= CHAPTER_FRAMES) {
@@ -263,9 +270,40 @@ static void write_ppm(void)
     fclose(s_ppm);
 }
 
+// Recording for animations: every tick as one image, a pixel as a 12 x 12 cell with a
+// dark gap, and the frame number of each caption change.
+static char s_rec[256];
+static int s_rec_n, s_rec_every = 1, s_rec_count;
+static void record_frame(void)
+{
+    const display_px_t *f = gfx_frame();
+    const int cell = 12, pad = 12, W = 16 * cell + 2 * pad, H = W;
+    char path[300];
+    snprintf(path, sizeof(path), "%s/%05d.ppm", s_rec, s_rec_n++);
+    FILE *o = fopen(path, "wb");
+    if (!o) return;
+    fprintf(o, "P6\n%d %d\n255\n", W, H);
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            unsigned char rgb[3] = { 6, 6, 6 };
+            const int lx = x - pad, ly = y - pad;
+            if (lx >= 0 && ly >= 0 && lx < 16 * cell && ly < 16 * cell && lx % cell < cell - 2 && ly % cell < cell - 2) {
+                const display_px_t p = f[(ly / cell) * 16 + lx / cell];
+                rgb[0] = p.r < 22 ? 22 : p.r; rgb[1] = p.g < 22 ? 22 : p.g; rgb[2] = p.b < 22 ? 22 : p.b;
+            }
+            fwrite(rgb, 1, 3, o);
+        }
+    }
+    fclose(o);
+}
+
 static void tick(int n)
 {
-    for (int i = 0; i < n; i++) { host_tick(); ui_core_tick(); }
+    for (int i = 0; i < n; i++) {
+        host_tick();
+        ui_core_tick();
+        if (s_rec[0] && s_rec_count++ % s_rec_every == 0) record_frame();
+    }
 }
 
 int main(int argc, char **argv)
@@ -293,6 +331,7 @@ int main(int argc, char **argv)
         else if (!strcmp(a, "unplug")) { s_bat.plugged = false; ev.type = UI_EV_UNPLUGGED; }
         else if (!strcmp(a, "dtest")) { ui_core_display_test(); continue; }  // the web page's display test
         else if (!strcmp(a, "endless")) { s_endless = true; continue; }
+        else if (!strcmp(a, "clockrun")) { s_clock_runs = true; continue; }
         else if (!strncmp(a, "face:", 5)) { s_face = a[5] == '1'; continue; }
         else if (!strncmp(a, "wake:", 5)) { s_light[3] = a[5] == '1'; continue; }
         else if (!strncmp(a, "wifi:", 5)) { s_no_wifi = a[5] == '0'; continue; }
@@ -317,6 +356,19 @@ int main(int argc, char **argv)
         else if (a[0] == 'm' && a[1] >= '0' && a[1] <= '9') tick(atoi(a + 1) * (60000 / UI_FRAME_MS));
         else if (!strcmp(a, "show")) { char l[64]; snprintf(l, sizeof(l), "-- after: %s", i > 1 ? argv[i - 1] : "start"); show(l); }
         else if (!strncmp(a, "ppm:", 4)) s_ppm = fopen(a + 4, "wb");
+        else if (!strncmp(a, "rec:", 4)) { snprintf(s_rec, sizeof(s_rec), "%s", a + 4); s_rec_n = 0; }
+        else if (!strncmp(a, "every:", 6)) { s_rec_every = atoi(a + 6) > 0 ? atoi(a + 6) : 1; s_rec_count = 0; }
+        else if (!strncmp(a, "say:", 4)) {
+            char path[300];
+            snprintf(path, sizeof(path), "%s/captions.txt", s_rec);
+            FILE *c = fopen(path, "a");
+            if (c) {
+                fprintf(c, "%d\t", s_rec_n);
+                for (const char *p = a + 4; *p; p++) fputc(*p == '_' ? ' ' : *p, c);
+                fputc('\n', c);
+                fclose(c);
+            }
+        }
         else { fprintf(stderr, "unknown command '%s'\n", a); return 2; }
     }
     if (s_ppm) write_ppm();

@@ -1920,3 +1920,24 @@ firmware's internals.
   - `tools/publish_release.sh`: creates GitHub releases from the
     changelog.
 - Release binaries are no longer in git; they go on GitHub Releases.
+
+## 2026-10-16 — Animated GIFs of the UI
+
+User asked for more simulated images to show off the interface: animations
+of the scrolling text, the menu, favouriting and so on.
+
+- **Simulator.** New commands:
+  - `rec:DIR`: writes every 40 ms tick as an image, with 12-pixel cells
+    and dark gaps like the LED matrix.
+  - `every:N`: records only every Nth tick, to speed slow things up.
+  - `say:TEXT`: captions.
+  - `clockrun`: the time of day moves on with the ticks. It stands still
+    otherwise, which the tests rely on.
+- **Scripts.** `tools/ui_sim/gif.sh` turns a recording into a GIF with
+  ffmpeg, putting each caption under the display from its frame until the
+  next one. `tools/ui_sim/make_gifs.sh` scripts eight of them.
+- **The GIFs** (`docs/media/anim_*.gif`, 30-170 KB each): start-up, browsing,
+  menu and A–Z, playing (volume, chapter screen), favourites, cards (book
+  card in and out, sleep card), battery, and the clock's sunrise and sunset
+  at one frame per 6 s. Used in the README, using.md and getting-started.md.
+- Desktop tests all pass.
