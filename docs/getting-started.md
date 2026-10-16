@@ -240,7 +240,7 @@ tools/flash.sh --first     # flashes that local build (in bootloader mode)
 
 3. **Play.** Turn the right knob to browse and press it to choose; the left
    knob is volume, and pressing it plays or pauses. More in
-   [using.md](using.md).
+   [Using yotwo](../README.md#using-yotwo).
 
 ## Updating later
 

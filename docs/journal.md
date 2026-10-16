@@ -1979,3 +1979,16 @@ these looked laid on top. The look is now:
 
 The look can be tuned with environment variables (`PX_BLUR`, `GLOW1`,
 `DIM`, …) on `gif.sh`. The set is now 0.8 MB.
+
+## 2026-10-16 — README: comparison table and usage guide
+
+- Added a table comparing the original firmware with yotwo: where content
+  comes from, accounts and cloud, choosing what to play, cards, offline,
+  settings, updates, installing and more.
+- The user liked the usage guide and wanted it in the README rather than
+  tucked away, so `docs/using.md` became the README's "Using yotwo" section,
+  and the links to it were updated.
+- So nothing appears twice, the README's animation grid at the top is one
+  row (browsing, playing, the clock), and the usage section carries the
+  others.
+- Added a line of quick links under the introduction.

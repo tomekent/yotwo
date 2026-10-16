@@ -7,7 +7,7 @@ and app code running on a Yoto Gen 2 board layer, with a UI of its own.
 
 This page grew alongside the [journal](journal.md), so parts of it read as a
 lab notebook (results of each flash, in order). For using the player see
-[using.md](using.md); for building see [building.md](building.md).
+[Using yotwo](../README.md#using-yotwo); for building see [building.md](building.md).
 
 **Status: working on the player since 2026-10-05.** It sets up from a
 phone, signs in, lists the library, and streams and plays a book chosen
