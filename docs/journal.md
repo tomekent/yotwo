@@ -1886,3 +1886,37 @@ check, the status page's address, the OTA trial's self-request, the
 start-up log and the display's sign-in messages. The setup page's closing
 message mentions the `-2` possibility (the final name is only known after
 the restart). Tests pass. Not yet on either player.
+
+## 2026-10-16 — Prepared for publishing on GitHub
+
+The user asked to publish the project on GitHub, keeping the board details
+(pin map, chips, devices) but leaving out everything about the original
+firmware's internals.
+
+- **Split.** The study notes on the original firmware, its embedded
+  configs, the flash backups, serial logs and the analysis tools are kept in
+  a separate private folder with the full development history. This
+  repository holds the firmware, the tools, and documentation rewritten for
+  readers new to the project.
+- **History.** Rebuilt as one commit per release (`v0.1.0-beta` to
+  `v0.5.6-beta`), each the source of that release, so every tag still builds
+  the version it names. Checked: no Wi-Fi names, server addresses or account
+  names in any commit or release file.
+- **Docs.** New README (what it does, limits, getting started), and new
+  [getting-started.md](getting-started.md) (serial header, boot/reset board
+  or jumper, backup, flashing a release or a build, first setup, updating,
+  restoring, troubleshooting), with places marked for the author's photos.
+  Also new: [using.md](using.md), [building.md](building.md), the public
+  [hardware.md](hardware.md), [roadmap.md](roadmap.md) and `CHANGELOG.md`.
+- **Tools.**
+  - `tools/backup.sh`: a resumable backup in 512 KB pieces, for these noisy
+    serial links.
+  - `tools/restore.sh`.
+  - `tools/verify_backup.py` (was `verify_dump.py`).
+  - `tools/flash.sh`: now finds more adapters, falls back to an installed
+    esptool, adds `--first` (erases the old settings area), and downloads
+    a published release when there is no local build.
+  - `tools/cable_zip.sh`: the cable bundle.
+  - `tools/publish_release.sh`: creates GitHub releases from the
+    changelog.
+- Release binaries are no longer in git; they go on GitHub Releases.
