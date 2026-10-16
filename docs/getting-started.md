@@ -4,7 +4,7 @@ From a Yoto Player Gen 2 on its original firmware to yotwo playing your
 Audiobookshelf library. Read it all the way through once before you start.
 
 - [What you need](#what-you-need)
-- [1. Open the player and solder a header](#1-open-the-player-and-solder-a-header)
+- [1. Open the player and solder five wires](#1-open-the-player-and-solder-five-wires)
 - [2. A way into bootloader mode](#2-a-way-into-bootloader-mode)
 - [3. Back up the original firmware](#3-back-up-the-original-firmware)
 - [4a. Flash a release](#4a-flash-a-release) or [4b. build from source](#4b-build-from-source)
@@ -23,24 +23,33 @@ Audiobookshelf library. Read it all the way through once before you start.
 |---|---|
 | **Player** | Yoto Player, 2nd generation: the full-size player with the 16 × 16 LED display, two knobs and the pogo-pin charging dock. A microSD card is already inside |
 | **USB-to-serial adapter** | Any **3.3 V** one: CP2102, CH340, FT232… Not 5 V logic |
-| **Soldering** | Iron, solder, a strip of 2.54 mm header pins, jumper wires |
+| **Soldering** | Iron, solder, five jumper wires (or thin wire with a plug at the far end to suit your breadboard or board) |
 | **Boot/reset** | A small board with two push buttons, built like [Adafruit's serial programmer breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout) but without its power regulator (step 2). Or just a jumper wire |
-| **Tools** | <!-- TODO(author): which screwdriver/bit opens the player? Any clips or glue? --> **[To add: the screwdriver bit needed]** |
+| **Tools** | The screwdriver from [Yoto's SD card guide](https://support.yotoplay.com/en_gb/yoto-player-2nd-gen-how-to-replace-the-sd-card-SyHJKtomMg), a small spanner or pliers for the knob nuts |
 | **Computer** | macOS or Linux runs the scripts directly. On Windows, use the esptool commands given alongside them (or WSL) |
 | **Software** | [uv](https://docs.astral.sh/uv/) (the scripts run esptool through it, so nothing is installed) or `pip install esptool` |
 | **Server** | [Audiobookshelf](https://www.audiobookshelf.org/), reachable from your Wi-Fi |
 
-## 1. Open the player and solder a header
+## 1. Open the player and solder five wires
 
-<!-- TODO(author): describe opening the case: screws, clips, the ribbon/cables to watch, how the board comes out. -->
+**Opening it.** Follow Yoto's own guide,
+[Yoto Player (2nd Gen): how to replace the SD card](https://support.yotoplay.com/en_gb/yoto-player-2nd-gen-how-to-replace-the-sd-card-SyHJKtomMg),
+up to and including **step 6**. Then, to get the main board out:
 
-**[To add: how to open the case]**
+1. Unplug all the other connectors from the main board.
+2. Pull off the two orange knob caps. They're a tight fit, so pull hard.
+3. Undo the nuts that hold the two rotary encoders (the knobs) in place,
+   with a small spanner or pliers.
+4. Take out both encoders.
+5. Unclip the black support brackets.
+6. Remove the **5 screws** that fix the main board to the screen case.
+7. Lift out the main board.
 
 > **[Photo to add: the opened player, showing where the board sits]**
 > <!-- docs/media/photo-opened.jpg -->
 
-The ESP32's serial port and boot pins are reached through test pads on the
-main board. You need five connections:
+**Soldering.** The ESP32's serial port and boot pins come out on five pins on the main
+board. Solder a wire to each:
 
 | Wire | What it does on the ESP32 | Connects to |
 |---|---|---|
@@ -60,22 +69,32 @@ player's TX goes to the adapter's RX.
 > **[Photo to add: the board's pads for EN, RST, TX, RX and GND, labelled]**
 > <!-- docs/media/photo-pads.jpg -->
 
-> **[Photo to add: the header pins soldered on]**
-> <!-- docs/media/photo-header.jpg -->
+> **[Photo to add: the five wires soldered on]**
+> <!-- docs/media/photo-wires.jpg -->
 
 Tips:
 
-- Solder short wires from the pads to a header that you can reach with the
-  case closed, or leave it with the back off while you work.
+- **Solder individual wires, not a header strip.** A header is hard to
+  desolder, and it has to come off again before the player goes back
+  together, because one of the knobs sits in the way of it. Give each wire
+  whatever end suits the other side: a plain jumper end for a breadboard, as
+  in the photo in step 2, or a plug to match your boot/reset board.
 - Keep the wires short. These boards' serial links are noisy even at 115200
   baud, and long flying leads make it worse.
 - **No power wire.** Don't connect the adapter's 3.3 V or 5 V to the
   player. Power the player as you normally would, from the pogo-pin dock (or
-  a USB-C mod), and connect only GND, TX and RX to the adapter. Keep it on
+  a USB-C mod); with the main board out of the case, that means keeping the
+  charging base's power lead plugged into it, as in the photo in step 2.
+  Connect only GND, TX and RX to the adapter. Keep it on
   the charger while you flash it: in bootloader mode no firmware is running
   to hold the power latch, so on battery alone it would switch off.
 - **Don't touch GPIO 12.** It's a strapping pin that sets the flash
   voltage; if it's pulled high at reset the board won't boot.
+
+**Putting it back together** (once yotwo is installed and running over
+Wi-Fi): reverse the steps above and Yoto's guide. Later updates go over
+Wi-Fi, so you shouldn't need the wires again: desolder them, or if you'd
+rather keep a way back in, trim them short and tuck them clear of the knobs.
 
 ## 2. A way into bootloader mode
 

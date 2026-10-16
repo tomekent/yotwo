@@ -99,7 +99,7 @@ big Gen 2 player. So this is that.
 
 ## Limits
 
-- **Installing it is the hard part.** You open the player, solder a header to
+- **Installing it is the hard part.** You open the player, solder five wires to
   the board and use a USB-to-serial adapter. This is a one-off: after that,
   updates go over Wi-Fi.
 - **16 × 16 pixels is tiny.** That's the Yoto's charm, but titles have to
@@ -125,7 +125,7 @@ You will need:
   pixel display and the charging dock. Second-hand ones are cheap. Not the
   Mini; the Gen 3 is untested.
 - A **3.3 V USB-to-serial adapter** (CP2102, CH340, FT232…), a soldering
-  iron, header pins and a few jumper wires.
+  iron and a few jumper wires.
 - Two push buttons for a small **boot/reset board**, built like
   [Adafruit's serial programmer breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout)
   minus its power regulator, since the player runs on its own charger (or
@@ -134,7 +134,7 @@ You will need:
 
 The steps, in full in **[docs/getting-started.md](docs/getting-started.md)**:
 
-1. [Open the player and solder a serial header](docs/getting-started.md#1-open-the-player-and-solder-a-header)
+1. [Open the player and solder five wires](docs/getting-started.md#1-open-the-player-and-solder-five-wires)
 2. [Make a boot/reset board, or use a jumper wire](docs/getting-started.md#2-a-way-into-bootloader-mode)
 3. [Back up the original firmware](docs/getting-started.md#3-back-up-the-original-firmware) (strongly recommended)
 4. Install yotwo, either way:
@@ -291,7 +291,7 @@ websites, but anyone on your network could read what it sends.
 | | |
 |---|---|
 | [Using yotwo](#using-yotwo) | The knobs, menus, settings, cards, the web page, updates |
-| [Getting started](docs/getting-started.md) | Opening the player, serial header, boot/reset board, backup, flashing, first setup, restoring the original firmware |
+| [Getting started](docs/getting-started.md) | Opening the player, soldering the serial wires, boot/reset board, backup, flashing, first setup, restoring the original firmware |
 | [Building from source](docs/building.md) | Toolchain, build, tests, the UI simulator, making releases |
 | [Hardware](docs/hardware.md) | The Gen 2 board: chips, pin map, IO expander, buses, power, cautions |
 | [Firmware reference](docs/firmware.md) | How the firmware works, part by part, and what was confirmed on the player |

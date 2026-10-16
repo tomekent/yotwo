@@ -2,7 +2,7 @@
 
 | Doc | Contents |
 |---|---|
-| [getting-started.md](getting-started.md) | Opening the player, serial header, boot/reset board, backup, flashing, first setup, updating, restoring the original firmware, troubleshooting |
+| [getting-started.md](getting-started.md) | Opening the player, soldering the serial wires, boot/reset board, backup, flashing, first setup, updating, restoring the original firmware, troubleshooting |
 | [Using yotwo](../README.md#using-yotwo) | The knobs, menus, settings, favourites, downloads, cards, clock, LED ring and the web page (in the main README) |
 | [building.md](building.md) | Toolchain, build, tests, the UI simulator, the shared ABSpresso code, making releases |
 | [hardware.md](hardware.md) | The Yoto Player Gen 2 board: SoC, pin map, IO expander, buses, chips, power, cautions |

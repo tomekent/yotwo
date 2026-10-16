@@ -2009,3 +2009,25 @@ The look can be tuned with environment variables (`PX_BLUR`, `GLOW1`,
   grounds (GPIO 0), while RST resets the chip. The step-1 table, the
   Option A table, the button sketch and the jumper-wire method all use those
   names.
+
+## 2026-10-16 — Opening the player, and wires instead of a header
+
+From the user:
+- **Opening the player.** Follow Yoto's SD-card replacement guide up to
+  step 6. Then:
+  1. unplug the other connectors;
+  2. pull off the orange knob caps;
+  3. undo the encoder nuts;
+  4. take out both encoders;
+  5. unclip the black brackets;
+  6. remove the 5 screws holding the main board to the screen case;
+  7. lift the board out.
+- **Wires, not a header.** Solder five individual wires rather than a header
+  strip. A header is hard to desolder and has to come off before
+  reassembly, because one of the knobs is in the way.
+
+Written into step 1 of the getting-started guide, which is renamed
+"Open the player and solder five wires" (links updated). Also added:
+- with the board out of the case it is powered from the charging base's
+  lead, as in the user's photo;
+- a short note on putting the player back together.
