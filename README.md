@@ -126,8 +126,10 @@ You will need:
   Mini; the Gen 3 is untested.
 - A **3.3 V USB-to-serial adapter** (CP2102, CH340, FT232…), a soldering
   iron, header pins and a few jumper wires.
-- Two push buttons for a small **boot/reset board** (optional: a jumper wire
-  works too).
+- Two push buttons for a small **boot/reset board**, built like
+  [Adafruit's serial programmer breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout)
+  minus its power regulator, since the player runs on its own charger (or
+  use a jumper wire instead).
 - An **Audiobookshelf server** on your network, or reachable from it.
 
 The steps, in full in **[docs/getting-started.md](docs/getting-started.md)**:

@@ -24,7 +24,7 @@ Audiobookshelf library. Read it all the way through once before you start.
 | **Player** | Yoto Player, 2nd generation: the full-size player with the 16 × 16 LED display, two knobs and the pogo-pin charging dock. A microSD card is already inside |
 | **USB-to-serial adapter** | Any **3.3 V** one: CP2102, CH340, FT232… Not 5 V logic |
 | **Soldering** | Iron, solder, a strip of 2.54 mm header pins, jumper wires |
-| **Boot/reset** | Two small push buttons on a scrap of board (step 2), or just a jumper wire |
+| **Boot/reset** | A small board with two push buttons, built like [Adafruit's serial programmer breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout) but without its power regulator (step 2). Or just a jumper wire |
 | **Tools** | <!-- TODO(author): which screwdriver/bit opens the player? Any clips or glue? --> **[To add: the screwdriver bit needed]** |
 | **Computer** | macOS or Linux runs the scripts directly. On Windows, use the esptool commands given alongside them (or WSL) |
 | **Software** | [uv](https://docs.astral.sh/uv/) (the scripts run esptool through it, so nothing is installed) or `pip install esptool` |
@@ -52,7 +52,7 @@ main board. You need five connections:
 
 TX and RX cross over: the player's TX goes to the adapter's RX.
 
-<!-- TODO(author): which pads on the board are these? Label them on the photo. Did you also wire 3V3? -->
+<!-- TODO(author): which pads on the board are these? Label them on the photo. -->
 
 > **[Photo to add: the board's pads for GND, TX, RX, GPIO0 and EN, labelled]**
 > <!-- docs/media/photo-pads.jpg -->
@@ -66,10 +66,11 @@ Tips:
   case closed, or leave it with the back off while you work.
 - Keep the wires short. These boards' serial links are noisy even at 115200
   baud, and long flying leads make it worse.
-- **Power the player from its own battery and charger** (the dock, or a
-  USB-C mod), not from the adapter. Connect only GND, TX and RX to the
-  adapter. In bootloader mode no firmware is running to hold the power
-  latch, so keep the player on the charger while you flash it.
+- **No power wire.** Don't connect the adapter's 3.3 V or 5 V to the
+  player. Power the player as you normally would, from the pogo-pin dock (or
+  a USB-C mod), and connect only GND, TX and RX to the adapter. Keep it on
+  the charger while you flash it: in bootloader mode no firmware is running
+  to hold the power latch, so on battery alone it would switch off.
 - **Don't touch GPIO 12.** It's a strapping pin that sets the flash
   voltage; if it's pulled high at reset the board won't boot.
 
@@ -82,16 +83,41 @@ connected to anything on this board, so esptool can't do this by itself
 
 ### Option A: a boot/reset board (recommended)
 
-Two push buttons, each connecting a pin to ground:
+Build the board from Adafruit's guide,
+**[Building a Serial Programmer Breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout)**
+(written for the Yoto Mini; [circuit diagram](https://learn.adafruit.com/assets/142210)).
+It is a quarter-size Perma-Proto board with:
+
+- a header for a USB-to-serial cable (GND, NC, 5V, TX, RX, NC: the FTDI
+  order);
+- a **BOOT** button and a **RESET** button (the latter through a 10 kΩ
+  resistor), each pulling its line to ground;
+- a 6-pin 1.25 mm cable pair, so the player plugs into the board;
+- a TLV62569 3.3 V regulator that powers the Mini from the cable's 5 V.
+
+**For the Gen 2, leave out the regulator and the 3.3 V wire.** The player
+is powered as usual, from its dock or a USB-C mod, so the board carries
+only signals. Adafruit's labels are the Mini's pad names; on the Gen 2 the
+same wires go to:
+
+| Adafruit's wire | On the Gen 2 | |
+|---|---|---|
+| "EN", to the BOOT button | **GPIO 0** | Pressed = GPIO 0 to GND |
+| "RST", through 10 kΩ to the RESET button | **EN** (chip reset) | Pressed = the chip resets |
+| TXD, to the cable's RX | **TX** (GPIO 1) | |
+| RXD, to the cable's TX | **RX** (GPIO 3) | |
+| GND | **GND** | Common ground |
+| 3.3V, from the regulator | (nothing) | Leave out, with the regulator; the cable's 5V stays unconnected |
+
+In short:
 
 ```
             BOOT                    RESET
-  GPIO 0 ───o  o─── GND     EN ───o  o─── GND
+  GPIO 0 ───o  o─── GND     EN ───[10k]───o  o─── GND
 ```
 
-The board already has pull-ups on both lines, so the two buttons are all you
-need. Adafruit's [serial programmer breakout](https://learn.adafruit.com/hacking-the-yoto-music-players/building-a-serial-programmer-breakout)
-for the Mini works on the same idea.
+Whatever the labels say, what matters is that BOOT grounds **GPIO 0** and
+RESET grounds **EN**.
 
 > **[Photo to add: the boot/reset board]**
 > <!-- docs/media/photo-boot-reset-board.jpg -->
