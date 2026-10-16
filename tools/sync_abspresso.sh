@@ -2,7 +2,7 @@
 # Copy the shared (hardware-independent) parts of ABSpresso into the Yoto firmware, apply
 # this project's local changes on top, and record which commit the copies came from.
 #
-# Usage: tools/sync_abspresso.sh [path-to-ABSpresso]
+# Usage: tools/sync_abspresso.sh [path-to-ABSpresso]   (a clone of github.com/tomekent/ABSpresso)
 #
 # ABSpresso itself is left untouched: changes this project needs in the shared code are
 # kept in firmware/main/abspresso/local.patch and re-applied here. To change the shared

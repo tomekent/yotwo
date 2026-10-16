@@ -67,7 +67,7 @@ bool board_headphones_inserted(void)
     return iox_read(&in) == ESP_OK && !iox_bit(in, IOX_HP_DETECT);
 }
 
-/* ES8388. Register values are the stock firmware's (docs/drivers.md), which is Espressif
+/* ES8388. Register values match the original firmware, which uses Espressif
    ADF's driver plus one extra write. The codec is an I2S slave with all four outputs on. */
 
 static esp_err_t es_write(uint8_t reg, uint8_t val)

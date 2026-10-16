@@ -43,7 +43,7 @@ static int64_t s_locked_until;  // after too many of them
 
 // Progress of the last save, shown on the page and the device screen.
 static SemaphoreHandle_t s_lock;
-static char s_message[160] = "Waiting for your phone or laptop";
+static char s_message[224] = "Waiting for your phone or laptop";
 static bool s_busy;
 static cJSON *s_pending;  // the submitted settings, handed to the apply task
 static volatile bool s_bring_up;  // the setup task should scan, then start the access point
@@ -277,8 +277,9 @@ static void apply(const cJSON *req)
     // Everything else (the server, the sign-in, the player's settings) is on its web page.
     char host[48];
     web_hostname(host, sizeof(host));
-    set_status(true, "Connected. Restarting... Then, on %s, open http://%s.local%s", ssid, host,
-               account_present() ? "" : " to sign in to your Audiobookshelf server");
+    // (If another player on the network already has the name, this one becomes name-2.)
+    set_status(true, "Connected. Restarting... Then, on %s, open http://%s.local%s (or %s-2.local if another player has that name)",
+               ssid, host, account_present() ? "" : " to sign in to your Audiobookshelf server", host);
     vTaskDelay(pdMS_TO_TICKS(6000));  // long enough to read the address
     esp_restart();
 out:

@@ -62,6 +62,16 @@ void web_hostname(char *out, size_t len)
     if (!n) strlcpy(out, "yotwo", len);
 }
 
+// The name actually held on the network: normally web_hostname()'s, but mDNS renames a
+// player whose name another device already has ("yotwo" becomes "yotwo-2"), and requests
+// and messages must use the name that reaches this player.
+void web_address(char *out, size_t len)
+{
+    char live[MDNS_NAME_BUF_LEN] = "";
+    if (s_mdns && mdns_hostname_get(live) == ESP_OK && live[0]) strlcpy(out, live, len);
+    else web_hostname(out, len);
+}
+
 static void announce(void)
 {
     char host[48];
@@ -202,7 +212,7 @@ static bool admit(httpd_req_t *req, ask_t kind)
         .change = kind == ASK_CHANGE || kind == ASK_UPLOAD,
         .upload = kind == ASK_UPLOAD,
     };
-    web_hostname(name, sizeof(name));
+    web_address(name, sizeof(name));
     my_ip(ip, sizeof(ip));
     harden(req, kind == ASK_COVER);
     const char *why = refusal(&a, name, ip);
@@ -316,7 +326,7 @@ static esp_err_t on_state(httpd_req_t *req)
     if (!admit(req, ASK_DATA)) return ESP_OK;
     cJSON *o = cJSON_CreateObject();
     char host[48], library[64];
-    web_hostname(host, sizeof(host));
+    web_address(host, sizeof(host));
     ui_library_name(library, sizeof(library));
     cJSON_AddStringToObject(o, "name", ui_player_name());
     cJSON_AddStringToObject(o, "host", host);
@@ -958,7 +968,7 @@ void web_start(void)
     };
     for (size_t i = 0; i < sizeof(uris) / sizeof(uris[0]); i++) httpd_register_uri_handler(s_httpd, &uris[i]);
     char host[48];
-    web_hostname(host, sizeof(host));
+    web_address(host, sizeof(host));
     ESP_LOGI(TAG, "web page up at http://%s.local (internal RAM free %u)", host,
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 }
@@ -973,7 +983,7 @@ bool web_running(void)
 static void ask_myself(void)
 {
     char host[64], name[48];
-    web_hostname(name, sizeof(name));
+    web_address(name, sizeof(name));
     snprintf(host, sizeof(host), "%s.local", name);
     const esp_http_client_config_t cfg = { .url = "http://127.0.0.1/api/state", .timeout_ms = 5000 };
     esp_http_client_handle_t c = esp_http_client_init(&cfg);

@@ -206,7 +206,7 @@ void app_main(void)
         if (!account_present() && wifi_is_connected() && web_running() && !told_web) {
             told_web = true;
             char host[48], msg[96];
-            web_hostname(host, sizeof(host));
+            web_address(host, sizeof(host));
             snprintf(msg, sizeof(msg), "SIGN IN AT %s.LOCAL", host);
             ESP_LOGW(TAG, "no server or sign-in yet: open http://%s.local", host);
             ui_show_message_locked(msg);
@@ -269,7 +269,7 @@ void app_main(void)
             told = true;
             ESP_LOGW(TAG, "signed out by the server");
             char host[48], msg[96];
-            web_hostname(host, sizeof(host));
+            web_address(host, sizeof(host));
             snprintf(msg, sizeof(msg), "SIGNED OUT - SIGN IN AGAIN AT %s.LOCAL", host);
             ui_show_message_locked(msg);
         }

@@ -13,8 +13,12 @@
 # releases/boot/ (that is, from what the player has): such a build must go on by
 # cable, because an update over Wi-Fi replaces the app alone.
 #
+# It also makes releases/yotwo-<version>-cable.zip: the app plus the boot files and a
+# short how-to, which is what a GitHub release offers for flashing by cable.
+#
 # Usage: tools/release.sh [--skip-tests]   (after tools/idf.sh build)
-# Then add the printed row to firmware/releases/RELEASES.md and tag v<version>.
+# Then add the printed row to firmware/releases/RELEASES.md, a section to CHANGELOG.md,
+# commit, tag v<version>, and publish with tools/publish_release.sh <version>.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 build="$root/firmware/build"
@@ -49,7 +53,7 @@ if [ $skip_tests = 0 ]; then
 fi
 
 slot=$((0x3C0000))
-size=$(stat -f %z "$build/yotwo.bin")
+size=$(wc -c < "$build/yotwo.bin" | tr -d ' ')
 pct=$((size * 100 / slot))
 [ $pct -ge 90 ] && echo "WARNING: the app fills $pct% of its slot" >&2
 
@@ -96,7 +100,9 @@ cp "$build/yotwo.bin" "$rel/yotwo-latest.bin"
 cp "$build/bootloader/bootloader.bin" "$build/partition_table/partition-table.bin" \
    "$build/ota_data_initial.bin" "$rel/boot/"
 
+zip="$("$root/tools/cable_zip.sh" "$want")"
+
 sha=$(shasum -a 256 "$out" | cut -d' ' -f1)
-echo "archived $out (and yotwo-latest.bin, boot/)"
+echo "archived $out (and yotwo-latest.bin, boot/, $(basename "$zip"))"
 echo "RELEASES.md row:"
 echo "| $want | $(date +%Y-%m-%d) | (this commit) | $size B | $sha | ${cable:+CABLE ONLY ($cable changed). }<notes> |"

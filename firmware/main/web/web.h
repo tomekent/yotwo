@@ -25,3 +25,6 @@ void web_stop(void);
 void web_name_changed(void);
 // The address made from the player's name, without ".local": lower case, digits and dashes.
 void web_hostname(char *out, size_t len);
+// The address the player actually holds on the network, without ".local": as above, unless
+// another device had that name first and mDNS added "-2" (or -3, ...).
+void web_address(char *out, size_t len);

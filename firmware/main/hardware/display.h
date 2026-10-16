@@ -1,6 +1,6 @@
 #pragma once
 // 16 x 16 RGB LED matrix: four HT16D35x drivers on the shared SPI bus, each driving four
-// rows of sixteen pixels. See docs/drivers.md.
+// rows of sixteen pixels. See docs/hardware.md.
 #include <stdint.h>
 #include "esp_err.h"
 
