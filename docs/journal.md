@@ -2042,3 +2042,15 @@ setup-code placeholder is now a still from the simulator on the player
 mock-up (`docs/media/setup_display.png`), shown next to the setup page that
 asks for the code. The only placeholder left is the README's photo of a
 player in use.
+
+## 2026-10-16 — Photo of a real player; where the pins are
+
+The user added a photo of the front of a player running yotwo (showing the
+`SERI` menu item). It was converted from HEIC to `docs/media/yotwo_player.jpg`
+(1200 px, 108 KB). Its metadata, which included the GPS position, was
+stripped, and the original deleted without ever being committed. It is now
+the README's photo, replacing the last placeholder.
+
+The user also said where the serial pins are: a row of 5 holes next to the
+front right rotary encoder. That is now in step 1 of the getting-started
+guide.

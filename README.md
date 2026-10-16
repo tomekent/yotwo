@@ -17,8 +17,9 @@ own server.
 
 <sub>Recorded from the desktop simulator, which runs the player's own UI code at its real speed, and laid over a mock-up of the player (`tools/ui_sim/make_gifs.sh`). Covers are placeholders in the simulator.</sub>
 
-<!-- PHOTO TO ADD: the player running yotwo, e.g. docs/media/photo-player.jpg -->
-> **[Photo to add: a yotwo player in use]**
+<p align="center">
+  <img src="docs/media/yotwo_player.jpg" alt="A Yoto Player Gen 2 running yotwo, showing the SERI (series) menu item" width="420">
+</p>
 
 > **Status: beta.** It is in daily use on two players and fairly stable. It
 > hasn't been fully kid-tested yet, and the UX in particular still needs

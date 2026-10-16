@@ -61,8 +61,9 @@ the wire called **EN** is the one the BOOT button grounds to enter bootloader
 mode, and **RST** is the one that resets the chip. TX and RX cross over: the
 player's TX goes to the adapter's RX.
 
-You can see the five wires reaching the board in the photo in step 2, at
-the top corner where the cable plugs in.
+The five pins are a **row of 5 holes next to the front right rotary
+encoder** (the right knob, seen from the front). You can see the wires
+reaching them in the photo in step 2.
 
 > No close-up of the soldered pins yet. If you do this, a photo of the five
 > pins with their wires on would be a very welcome contribution (open an
