@@ -9,18 +9,18 @@ own server.
 
 <table>
   <tr>
-    <td align="center"><img src="docs/media/anim_browse.gif" alt="Browsing books with the right knob" width="216"><br><sub>Browse with a knob</sub></td>
-    <td align="center"><img src="docs/media/anim_play.gif" alt="Playing a book: volume and chapters" width="216"><br><sub>Play, volume, chapters</sub></td>
-    <td align="center"><img src="docs/media/anim_clock.gif" alt="The clock's sunrise and sunset" width="216"><br><sub>Sunrise clock</sub></td>
+    <td align="center"><img src="docs/media/anim_browse.webp" alt="Browsing books with the right knob" width="260"><br><sub>Browse with a knob</sub></td>
+    <td align="center"><img src="docs/media/anim_play.webp" alt="Playing a book: volume and chapters" width="260"><br><sub>Play, volume, chapters</sub></td>
+    <td align="center"><img src="docs/media/anim_clock.webp" alt="The clock's sunrise and sunset" width="260"><br><sub>Sunrise clock</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/media/anim_menu.gif" alt="The menu and the A-Z letters" width="216"><br><sub>Menu and A–Z</sub></td>
-    <td align="center"><img src="docs/media/anim_favourite.gif" alt="Favouriting with both knobs" width="216"><br><sub>Favourites</sub></td>
-    <td align="center"><img src="docs/media/anim_cards.gif" alt="Book and sleep cards" width="216"><br><sub>Cards (optional)</sub></td>
+    <td align="center"><img src="docs/media/anim_menu.webp" alt="The menu and the A-Z letters" width="260"><br><sub>Menu and A–Z</sub></td>
+    <td align="center"><img src="docs/media/anim_favourite.webp" alt="Favouriting with both knobs" width="260"><br><sub>Favourites</sub></td>
+    <td align="center"><img src="docs/media/anim_cards.webp" alt="Book and sleep cards" width="260"><br><sub>Cards (optional)</sub></td>
   </tr>
 </table>
 
-<sub>Recorded from the desktop simulator, which runs the player's own UI code at its real speed (`tools/ui_sim/make_gifs.sh`).</sub>
+<sub>Recorded from the desktop simulator, which runs the player's own UI code at its real speed, and laid over a mock-up of the player (`tools/ui_sim/make_gifs.sh`). Covers are placeholders in the simulator.</sub>
 
 <!-- PHOTO TO ADD: the player running yotwo, e.g. docs/media/photo-player.jpg -->
 > **[Photo to add: a yotwo player in use]**

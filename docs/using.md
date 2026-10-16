@@ -5,7 +5,7 @@ characters at a time. Longer names scroll along the bottom.
 
 ## The knobs and buttons
 
-<img src="media/anim_play.gif" alt="Playing a book: volume and chapters" width="216" align="right">
+<img src="media/anim_play.webp" alt="Playing a book: volume and chapters" width="240" align="right">
 
 | | Turn | Press | Hold |
 |---|---|---|---|
@@ -22,7 +22,7 @@ version (see [Updating](#updating)).
 
 Press the right knob on the player screen:
 
-<img src="media/anim_menu.gif" alt="The menu and the A-Z letters" width="216" align="right">
+<img src="media/anim_menu.webp" alt="The menu and the A-Z letters" width="240" align="right">
 
 | Item | Shows |
 |---|---|
@@ -64,7 +64,7 @@ a small red heart marks a favourite.
 
 ## Favourites and downloads
 
-<img src="media/anim_favourite.gif" alt="Favouriting with both knobs" width="216" align="right">
+<img src="media/anim_favourite.webp" alt="Favouriting with both knobs" width="240" align="right">
 
 Press both knobs on a book to make it a favourite (a heart swells) or to
 unfavourite it (an empty heart shrinks). Favourites are mirrored to a
@@ -82,7 +82,7 @@ back to the server when Wi-Fi returns.
 
 ## Cards
 
-<img src="media/anim_cards.gif" alt="A book card, then a sleep card" width="216" align="right">
+<img src="media/anim_cards.webp" alt="A book card, then a sleep card" width="240" align="right">
 
 Cards are optional. Nothing is written to a card: the player remembers the
 card's ID. Original Yoto cards, blank NTAG stickers and most other NFC tags
@@ -100,7 +100,7 @@ work.
 
 ## Clock and LED ring
 
-<img src="media/anim_clock.gif" alt="The clock's sunrise and sunset, sped up" width="216" align="right">
+<img src="media/anim_clock.webp" alt="The clock's sunrise and sunset, sped up" width="240" align="right">
 
 With nothing playing and no knob touched for 30 seconds, the player shows a
 clock. A sun or moon on top rises and sets with the sunrise and sunset times
@@ -118,7 +118,7 @@ player to be on: set `AUTO` to `NONE`, or leave it on the charger.
 **Battery:** a tap of the power button shows the battery for three seconds,
 and plugging in the charger shows it with a lightning bolt.
 
-<img src="media/anim_battery.gif" alt="The battery display" width="216">
+<img src="media/anim_battery.webp" alt="The battery display" width="240">
 
 ## The web page
 

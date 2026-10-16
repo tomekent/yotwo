@@ -196,7 +196,7 @@ enter bootloader mode again and run `tools/flash.sh` (without `--first`).
 Then **reset the player** (RESET button, or power it off and on) and go to
 step 5. Every start shows yotwo's rainbow animation until it is ready:
 
-<img src="media/anim_startup.gif" alt="The start-up animation" width="216">
+<img src="media/anim_startup.webp" alt="The start-up animation" width="240">
 
 ## 4b. Build from source
 

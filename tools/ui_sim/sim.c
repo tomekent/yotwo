@@ -22,7 +22,7 @@
 //            tN          advance N ticks (UI_FRAME_MS, 40 ms each)
 //            show        print the frame
 //            ppm:FILE    start recording every shown frame to FILE (a horizontal strip)
-//            rec:DIR     record every tick from here on as DIR/NNNNN.ppm (for tools/ui_sim/gif.sh)
+//            rec:DIR     record every tick from here on as DIR/NNNNN.pam, RGBA (for tools/ui_sim/gif.sh)
 //            every:N     record only every Nth tick (speeds slow things up; default 1)
 //            say:TEXT    caption from this frame on, in DIR/captions.txt (use _ for spaces)
 //
@@ -270,28 +270,37 @@ static void write_ppm(void)
     fclose(s_ppm);
 }
 
-// Recording for animations: every tick as one image, a pixel as a 12 x 12 cell with a
-// dark gap, and the frame number of each caption change.
+// Recording for animations: every tick as one transparent image (PAM, RGBA), each
+// pixel a 15 x 15 cell with rounded corners and a gap. Unlit pixels and the gaps are
+// transparent; a lit pixel carries its colour at full strength with its brightness as
+// the alpha, so it reads as light on whatever it is laid over (gif.sh does that).
 static char s_rec[256];
 static int s_rec_n, s_rec_every = 1, s_rec_count;
 static void record_frame(void)
 {
     const display_px_t *f = gfx_frame();
-    const int cell = 12, pad = 12, W = 16 * cell + 2 * pad, H = W;
+    enum { CELL = 15, GAP = 2, W = 16 * CELL };
     char path[300];
-    snprintf(path, sizeof(path), "%s/%05d.ppm", s_rec, s_rec_n++);
+    snprintf(path, sizeof(path), "%s/%05d.pam", s_rec, s_rec_n++);
     FILE *o = fopen(path, "wb");
     if (!o) return;
-    fprintf(o, "P6\n%d %d\n255\n", W, H);
-    for (int y = 0; y < H; y++) {
+    fprintf(o, "P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n", W, W);
+    for (int y = 0; y < W; y++) {
         for (int x = 0; x < W; x++) {
-            unsigned char rgb[3] = { 6, 6, 6 };
-            const int lx = x - pad, ly = y - pad;
-            if (lx >= 0 && ly >= 0 && lx < 16 * cell && ly < 16 * cell && lx % cell < cell - 2 && ly % cell < cell - 2) {
-                const display_px_t p = f[(ly / cell) * 16 + lx / cell];
-                rgb[0] = p.r < 22 ? 22 : p.r; rgb[1] = p.g < 22 ? 22 : p.g; rgb[2] = p.b < 22 ? 22 : p.b;
+            unsigned char px[4] = { 0, 0, 0, 0 };
+            const int cx = x % CELL, cy = y % CELL, in = CELL - GAP;
+            const bool corner = (cx == 0 || cx == in - 1) && (cy == 0 || cy == in - 1);
+            if (cx < in && cy < in && !corner) {
+                const display_px_t p = f[(y / CELL) * 16 + x / CELL];
+                const int m = p.r > p.g ? (p.r > p.b ? p.r : p.b) : (p.g > p.b ? p.g : p.b);
+                if (m > 8) {
+                    px[0] = (unsigned char)(p.r * 255 / m);
+                    px[1] = (unsigned char)(p.g * 255 / m);
+                    px[2] = (unsigned char)(p.b * 255 / m);
+                    px[3] = (unsigned char)(m < 40 ? 40 : m);  // the faintest still shows
+                }
             }
-            fwrite(rgb, 1, 3, o);
+            fwrite(px, 1, 4, o);
         }
     }
     fclose(o);

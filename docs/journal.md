@@ -1941,3 +1941,27 @@ of the scrolling text, the menu, favouriting and so on.
   card in and out, sleep card), battery, and the clock's sunrise and sunset
   at one frame per 6 s. Used in the README, using.md and getting-started.md.
 - Desktop tests all pass.
+
+## 2026-10-16 — Animations on a picture of the player
+
+The user made a mock-up of a blank Gen 2 player in Claude Design
+(`docs/media/yoto_gen2_blank.png`, 480 × 462). Their design file places the
+16 × 16 display in a 235 × 235 box at (122, 120). They asked for the
+animations to be shown on it, with unlit pixels transparent.
+
+- **Simulator.** Recorded frames are now RGBA. Each pixel is a 15 px cell
+  with rounded corners and a gap. Unlit pixels and the gaps are transparent.
+  A lit pixel has its colour at full strength, with its brightness as the
+  alpha, so it reads as light on whatever lies under it.
+- **`gif.sh` styles:**
+  - `device` (default): the frames are scaled into the box, with a soft
+    glow and a faint dark halo under each pixel. Without the halo, white
+    text is lost on the pale face.
+  - `flat`: the bare matrix on black.
+  - `overlay`: an animated PNG with transparency.
+- **WebP.** The glow made the GIFs large (5.4 MB for the set), so the
+  device versions are animated WebP at 12.5 frames a second instead: 1.2 MB
+  in all, and GitHub shows them like GIFs. The transparent overlays are in
+  `docs/media/overlay/` (0.7 MB).
+- The play animation now waits for the screen to settle on the cover
+  (about 16 s after a book opens in the simulator).

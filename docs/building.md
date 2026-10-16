@@ -43,10 +43,16 @@ checks. The simulator runs `firmware/main/ui/ui_core.c` unchanged against a
 fake library. It can record image strips like the ones in `docs/media/`; see
 the comment at the top of `tools/ui_sim/sim.c` for its commands.
 
-`tools/ui_sim/make_gifs.sh` remakes the animated GIFs in `docs/media/`
-(`anim_*.gif`). Each is a scripted walk through one part of the UI, recorded
-by `tools/ui_sim/gif.sh` at the player's real frame rate with captions. It
-needs ffmpeg.
+`tools/ui_sim/make_gifs.sh` remakes the animations in `docs/media/`. Each
+is a scripted walk through one part of the UI, recorded by
+`tools/ui_sim/gif.sh` at the player's real speed, with captions:
+
+- `anim_*.webp`: the display lit up on a mock-up of the player
+  (`yoto_gen2_blank.png`; the display is the 235 × 235 box at (122, 120)).
+- `overlay/anim_*.png`: the same as animated PNGs with transparency (unlit
+  pixels and the gaps between them clear), to lay over a picture of your own.
+
+`STYLE=flat` gives the bare matrix on black. It needs ffmpeg.
 
 ## Layout
 
